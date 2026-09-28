@@ -11,10 +11,21 @@ export const PROJECT_STATUSES: ProjectStatus[] = [
   'complete',
 ]
 
-// Sessions and frames share the same pipeline states in the source app.
+// Frames start once something has actually been shot.
 export type PipelineStatus = 'captured' | 'transferred' | 'processing' | 'complete'
 
 export const PIPELINE_STATUSES: PipelineStatus[] = [
+  'captured',
+  'transferred',
+  'processing',
+  'complete',
+]
+
+// Sessions can also be planned before any capturing happens.
+export type SessionStatus = 'planning' | PipelineStatus
+
+export const SESSION_STATUSES: SessionStatus[] = [
+  'planning',
   'captured',
   'transferred',
   'processing',
@@ -47,7 +58,7 @@ export interface Session {
   projectId: string
   date: string // ISO date - the night of the session
   location?: string // free text
-  status: PipelineStatus
+  status: SessionStatus
   filePath?: string // where this session's raw files currently live
   notes?: string
   createdAt: string

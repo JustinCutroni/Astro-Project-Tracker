@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { putDoc, removeDoc, removeWhere, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { PIPELINE_STATUSES, type Frame, type PipelineStatus, type Session } from '../types/models'
-import { PIPELINE_STATUS_LABEL } from '../lib/status'
+import { SESSION_STATUSES, type Frame, type Session, type SessionStatus } from '../types/models'
+import { SESSION_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 
 function today(): string {
@@ -20,7 +20,7 @@ export function SessionForm() {
 
   const [date, setDate] = useState(today())
   const [location, setLocation] = useState('')
-  const [status, setStatus] = useState<PipelineStatus>('captured')
+  const [status, setStatus] = useState<SessionStatus>('planning')
   const [filePath, setFilePath] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -112,11 +112,11 @@ export function SessionForm() {
             <select
               id="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as PipelineStatus)}
+              onChange={(e) => setStatus(e.target.value as SessionStatus)}
             >
-              {PIPELINE_STATUSES.map((s) => (
+              {SESSION_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {PIPELINE_STATUS_LABEL[s]}
+                  {SESSION_STATUS_LABEL[s]}
                 </option>
               ))}
             </select>

@@ -2,7 +2,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
-import { PIPELINE_STATUS_DOT, PIPELINE_STATUS_LABEL, PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
+import {
+  PROJECT_STATUS_DOT,
+  PROJECT_STATUS_LABEL,
+  SESSION_STATUS_DOT,
+  SESSION_STATUS_LABEL,
+} from '../lib/status'
 import {
   integrationMinutesForFrames,
   totalExposureSeconds,
@@ -146,8 +151,8 @@ export function ProjectDetail() {
               <div className="card-title-row">
                 <h3>{formatDate(session.date)}</h3>
                 <StatusBadge
-                  label={PIPELINE_STATUS_LABEL[session.status]}
-                  dot={PIPELINE_STATUS_DOT[session.status]}
+                  label={SESSION_STATUS_LABEL[session.status]}
+                  dot={SESSION_STATUS_DOT[session.status]}
                 />
               </div>
               <div className="muted">

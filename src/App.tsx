@@ -37,6 +37,10 @@ function App() {
           <Route path="/projects/:projectId/sessions/import" element={<ImportSessionLog />} />
           <Route path="/projects/:projectId/sessions/:sessionId" element={<SessionDetail />} />
           <Route
+            path="/projects/:projectId/sessions/:sessionId/import"
+            element={<ImportSessionLog />}
+          />
+          <Route
             path="/projects/:projectId/sessions/:sessionId/edit"
             element={<SessionForm />}
           />
