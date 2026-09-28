@@ -1,37 +1,31 @@
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { db } from '../db/db'
+import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
 import { PIPELINE_STATUS_DOT, PIPELINE_STATUS_LABEL, PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
-import { integrationMinutesForFrames, totalExposureSeconds } from '../types/models'
+import {
+  integrationMinutesForFrames,
+  totalExposureSeconds,
+  type Camera,
+  type FilterDef,
+  type Frame,
+  type Mount,
+  type Project,
+  type Session,
+  type Telescope,
+} from '../types/models'
 
 export function ProjectDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const project = useLiveQuery(() => (id ? db.projects.get(id) : undefined), [id])
-  const sessions = useLiveQuery(
-    () => (id ? db.sessions.where('projectId').equals(id).toArray() : []),
-    [id],
-  )
-  const frames = useLiveQuery(
-    () => (id ? db.frames.where('projectId').equals(id).toArray() : []),
-    [id],
-  )
-  const filters = useLiveQuery(() => db.filters.toArray(), [])
-  const camera = useLiveQuery(
-    () => (project?.cameraId ? db.cameras.get(project.cameraId) : undefined),
-    [project?.cameraId],
-  )
-  const telescope = useLiveQuery(
-    () => (project?.telescopeId ? db.telescopes.get(project.telescopeId) : undefined),
-    [project?.telescopeId],
-  )
-  const mount = useLiveQuery(
-    () => (project?.mountId ? db.mounts.get(project.mountId) : undefined),
-    [project?.mountId],
-  )
+  const project = useDocument<Project>('projects', id)
+  const sessions = useCollection<Session>('sessions', { field: 'projectId', value: id })
+  const frames = useCollection<Frame>('frames', { field: 'projectId', value: id })
+  const filters = useCollection<FilterDef>('filters')
+  const camera = useDocument<Camera>('cameras', project?.cameraId)
+  const telescope = useDocument<Telescope>('telescopes', project?.telescopeId)
+  const mount = useDocument<Mount>('mounts', project?.mountId)
 
   if (!project || !sessions || !frames || !filters) return null
 
@@ -50,10 +44,9 @@ export function ProjectDetail() {
   async function handleDelete() {
     if (!project) return
     if (!confirm(`Delete "${project.projectName || project.target}" and all its sessions?`)) return
-    const projectSessions = await db.sessions.where('projectId').equals(project.id).toArray()
-    await db.frames.where('projectId').equals(project.id).delete()
-    await db.sessions.bulkDelete(projectSessions.map((s) => s.id))
-    await db.projects.delete(project.id)
+    await removeWhere<Frame>('frames', 'projectId', project.id)
+    await removeWhere<Session>('sessions', 'projectId', project.id)
+    await removeDoc('projects', project.id)
     navigate('/projects')
   }
 

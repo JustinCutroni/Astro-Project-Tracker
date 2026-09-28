@@ -1,14 +1,12 @@
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Link } from 'react-router-dom'
-import { db } from '../db/db'
+import { useCollection } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
+import type { Project } from '../types/models'
 
 export function Projects() {
-  const projects = useLiveQuery(
-    () => db.projects.orderBy('updatedAt').reverse().toArray(),
-    [],
-  )
+  const projectsRaw = useCollection<Project>('projects')
+  const projects = projectsRaw && [...projectsRaw].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
   if (!projects) return null
 

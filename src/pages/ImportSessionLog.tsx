@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, nowIso } from '../db/db'
+import { bulkPut, useCollection, useDocument, putDoc } from '../firebase/firestoreDb'
+import { newId, nowIso } from '../lib/ids'
 import { parseAsiairAutorunLog, type ParsedAsiairLog } from '../lib/asiairLogParser'
-import { FRAME_TYPES, PIPELINE_STATUSES, type Frame, type FrameType, type PipelineStatus, type Session } from '../types/models'
+import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus, type Project, type Session } from '../types/models'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { IconClose } from '../components/icons'
@@ -45,8 +45,9 @@ export function ImportSessionLog() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const project = useLiveQuery(() => (projectId ? db.projects.get(projectId) : undefined), [projectId])
-  const filters = useLiveQuery(() => db.filters.orderBy('description').toArray(), [])
+  const project = useDocument<Project>('projects', projectId)
+  const filtersRaw = useCollection<FilterDef>('filters')
+  const filters = filtersRaw && [...filtersRaw].sort((a, b) => a.description.localeCompare(b.description))
   const knownLocations = useKnownLocations()
 
   const [rawText, setRawText] = useState('')
@@ -97,7 +98,7 @@ export function ImportSessionLog() {
       createdAt: nowIso(),
       updatedAt: nowIso(),
     }
-    await db.sessions.add(session)
+    await putDoc<Session>('sessions', session)
 
     const frames: Frame[] = batchDrafts.map((b) => ({
       id: newId(),
@@ -115,7 +116,7 @@ export function ImportSessionLog() {
       createdAt: nowIso(),
       updatedAt: nowIso(),
     }))
-    await db.frames.bulkAdd(frames)
+    await bulkPut<Frame>('frames', frames)
 
     navigate(`/projects/${projectId}/sessions/${session.id}`)
   }

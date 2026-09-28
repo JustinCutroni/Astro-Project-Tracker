@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, nowIso } from '../db/db'
-import { PIPELINE_STATUSES, type PipelineStatus, type Session } from '../types/models'
+import { putDoc, removeDoc, removeWhere, useDocument } from '../firebase/firestoreDb'
+import { newId, nowIso } from '../lib/ids'
+import { PIPELINE_STATUSES, type Frame, type PipelineStatus, type Session } from '../types/models'
 import { PIPELINE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 
@@ -15,10 +15,7 @@ export function SessionForm() {
   const navigate = useNavigate()
   const isEdit = Boolean(sessionId)
 
-  const existing = useLiveQuery(
-    () => (sessionId ? db.sessions.get(sessionId) : undefined),
-    [sessionId],
-  )
+  const existing = useDocument<Session>('sessions', sessionId)
   const knownLocations = useKnownLocations()
 
   const [date, setDate] = useState(today())
@@ -54,11 +51,11 @@ export function SessionForm() {
     }
 
     if (isEdit && existing) {
-      await db.sessions.put({ ...existing, ...base })
+      await putDoc<Session>('sessions', { ...existing, ...base })
       navigate(`/projects/${projectId}/sessions/${existing.id}`)
     } else {
       const session: Session = { id: newId(), createdAt: nowIso(), ...base }
-      await db.sessions.add(session)
+      await putDoc<Session>('sessions', session)
       navigate(`/projects/${projectId}/sessions/${session.id}`)
     }
   }
@@ -66,8 +63,8 @@ export function SessionForm() {
   async function handleDelete() {
     if (!existing) return
     if (!confirm('Delete this session and all its frames?')) return
-    await db.frames.where('sessionId').equals(existing.id).delete()
-    await db.sessions.delete(existing.id)
+    await removeWhere<Frame>('frames', 'sessionId', existing.id)
+    await removeDoc('sessions', existing.id)
     navigate(`/projects/${projectId}`)
   }
 

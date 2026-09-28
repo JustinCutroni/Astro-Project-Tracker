@@ -1,19 +1,36 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, nowIso } from '../db/db'
+import { putDoc, removeDoc, useCollection } from '../firebase/firestoreDb'
+import { newId, nowIso } from '../lib/ids'
 import { IconClose } from '../components/icons'
 import { findCameraSpec, searchCameraCatalog, type CameraSpec } from '../data/cameraCatalog'
+import type { Camera, FilterDef, Mount, Telescope } from '../types/models'
+import { signOutUser, useAuthUser } from '../firebase/auth'
+
+function byDescription<T extends { description: string }>(items: T[] | undefined): T[] | undefined {
+  return items && [...items].sort((a, b) => a.description.localeCompare(b.description))
+}
 
 type Tab = 'cameras' | 'telescopes' | 'mounts' | 'filters'
 
 export function Settings() {
   const [tab, setTab] = useState<Tab>('cameras')
+  const { user } = useAuthUser()
 
   return (
     <div>
       <div className="page-header">
         <h2>Settings</h2>
       </div>
+
+      {user && (
+        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="muted">Signed in as {user.email}</span>
+          <button className="btn btn-sm" onClick={() => signOutUser()}>
+            Sign out
+          </button>
+        </div>
+      )}
+
       <div className="tabs">
         <button className={tab === 'cameras' ? 'active' : ''} onClick={() => setTab('cameras')}>
           Cameras
@@ -40,7 +57,7 @@ export function Settings() {
 }
 
 function CamerasTab() {
-  const cameras = useLiveQuery(() => db.cameras.orderBy('description').toArray(), [])
+  const cameras = byDescription(useCollection<Camera>('cameras'))
   const [description, setDescription] = useState('')
   const [cameraType, setCameraType] = useState('')
   const [sensorWidthMm, setSensorWidthMm] = useState('')
@@ -74,7 +91,7 @@ function CamerasTab() {
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.cameras.add({
+    await putDoc<Camera>('cameras', {
       id: newId(),
       description: description.trim(),
       cameraType: cameraType.trim() || undefined,
@@ -95,7 +112,7 @@ function CamerasTab() {
   }
 
   async function remove(id: string) {
-    await db.cameras.delete(id)
+    await removeDoc('cameras', id)
   }
 
   if (!cameras) return null
@@ -222,14 +239,14 @@ function CamerasTab() {
 }
 
 function TelescopesTab() {
-  const telescopes = useLiveQuery(() => db.telescopes.orderBy('description').toArray(), [])
+  const telescopes = byDescription(useCollection<Telescope>('telescopes'))
   const [description, setDescription] = useState('')
   const [focalLength, setFocalLength] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.telescopes.add({
+    await putDoc<Telescope>('telescopes', {
       id: newId(),
       description: description.trim(),
       focalLength: focalLength.trim() || undefined,
@@ -240,7 +257,7 @@ function TelescopesTab() {
   }
 
   async function remove(id: string) {
-    await db.telescopes.delete(id)
+    await removeDoc('telescopes', id)
   }
 
   if (!telescopes) return null
@@ -286,18 +303,18 @@ function TelescopesTab() {
 }
 
 function MountsTab() {
-  const mounts = useLiveQuery(() => db.mounts.orderBy('description').toArray(), [])
+  const mounts = byDescription(useCollection<Mount>('mounts'))
   const [description, setDescription] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.mounts.add({ id: newId(), description: description.trim(), dateAdded: nowIso() })
+    await putDoc<Mount>('mounts', { id: newId(), description: description.trim(), dateAdded: nowIso() })
     setDescription('')
   }
 
   async function remove(id: string) {
-    await db.mounts.delete(id)
+    await removeDoc('mounts', id)
   }
 
   if (!mounts) return null
@@ -333,18 +350,18 @@ function MountsTab() {
 }
 
 function FiltersTab() {
-  const filters = useLiveQuery(() => db.filters.orderBy('description').toArray(), [])
+  const filters = byDescription(useCollection<FilterDef>('filters'))
   const [description, setDescription] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.filters.add({ id: newId(), description: description.trim(), dateAdded: nowIso() })
+    await putDoc<FilterDef>('filters', { id: newId(), description: description.trim(), dateAdded: nowIso() })
     setDescription('')
   }
 
   async function remove(id: string) {
-    await db.filters.delete(id)
+    await removeDoc('filters', id)
   }
 
   if (!filters) return null

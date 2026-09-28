@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Every document lives under users/{uid}/... and only that signed-in user
+// can read or write their own data. Nothing is shared between accounts.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

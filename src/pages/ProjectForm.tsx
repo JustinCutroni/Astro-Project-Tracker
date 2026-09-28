@@ -1,22 +1,34 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, nowIso } from '../db/db'
-import { PROJECT_STATUSES, type Project, type ProjectStatus } from '../types/models'
+import { putDoc, useCollection, useDocument } from '../firebase/firestoreDb'
+import { newId, nowIso } from '../lib/ids'
+import {
+  PROJECT_STATUSES,
+  type Camera,
+  type FilterDef,
+  type Mount,
+  type Project,
+  type ProjectStatus,
+  type Telescope,
+} from '../types/models'
 import { PROJECT_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { formatTarget, searchTargets } from '../lib/targetSearch'
+
+function byDescription<T extends { description: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.description.localeCompare(b.description))
+}
 
 export function ProjectForm() {
   const { id } = useParams()
   const navigate = useNavigate()
   const isEdit = Boolean(id)
 
-  const existing = useLiveQuery(() => (id ? db.projects.get(id) : undefined), [id])
-  const cameras = useLiveQuery(() => db.cameras.orderBy('description').toArray(), [])
-  const telescopes = useLiveQuery(() => db.telescopes.orderBy('description').toArray(), [])
-  const mounts = useLiveQuery(() => db.mounts.orderBy('description').toArray(), [])
-  const filters = useLiveQuery(() => db.filters.orderBy('description').toArray(), [])
+  const existing = useDocument<Project>('projects', id)
+  const camerasRaw = useCollection<Camera>('cameras')
+  const telescopesRaw = useCollection<Telescope>('telescopes')
+  const mountsRaw = useCollection<Mount>('mounts')
+  const filtersRaw = useCollection<FilterDef>('filters')
   const knownLocations = useKnownLocations()
 
   const [target, setTarget] = useState('')
@@ -50,7 +62,12 @@ export function ProjectForm() {
   }
 
   if (isEdit && !existing) return null
-  if (!cameras || !telescopes || !mounts || !filters) return null
+  if (!camerasRaw || !telescopesRaw || !mountsRaw || !filtersRaw) return null
+
+  const cameras = byDescription(camerasRaw)
+  const telescopes = byDescription(telescopesRaw)
+  const mounts = byDescription(mountsRaw)
+  const filters = byDescription(filtersRaw)
 
   function toggleFilter(id: string) {
     setFilterIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]))
@@ -76,11 +93,11 @@ export function ProjectForm() {
     }
 
     if (isEdit && existing) {
-      await db.projects.put({ ...existing, ...base })
+      await putDoc<Project>('projects', { ...existing, ...base })
       navigate(`/projects/${existing.id}`)
     } else {
       const project: Project = { id: newId(), createdAt: nowIso(), ...base }
-      await db.projects.add(project)
+      await putDoc<Project>('projects', project)
       navigate(`/projects/${project.id}`)
     }
   }
