@@ -3,7 +3,7 @@ import { putDoc, removeDoc, useCollection } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
 import { IconClose } from '../components/icons'
 import { findCameraSpec, searchCameraCatalog, type CameraSpec } from '../data/cameraCatalog'
-import type { Camera, FilterDef, Mount, Telescope } from '../types/models'
+import type { Camera, FilterDef, Location, Mount, Telescope } from '../types/models'
 import { signOutUser, useAuthUser } from '../firebase/auth'
 import { sortFilters } from '../lib/filters'
 
@@ -15,7 +15,7 @@ function sortedFilters(items: FilterDef[] | undefined): FilterDef[] | undefined 
   return items && sortFilters(items)
 }
 
-type Tab = 'cameras' | 'telescopes' | 'mounts' | 'filters'
+type Tab = 'cameras' | 'telescopes' | 'mounts' | 'filters' | 'locations'
 
 export function Settings() {
   const [tab, setTab] = useState<Tab>('cameras')
@@ -52,11 +52,15 @@ export function Settings() {
         <button className={tab === 'filters' ? 'active' : ''} onClick={() => setTab('filters')}>
           Filters
         </button>
+        <button className={tab === 'locations' ? 'active' : ''} onClick={() => setTab('locations')}>
+          Locations
+        </button>
       </div>
       {tab === 'cameras' && <CamerasTab />}
       {tab === 'telescopes' && <TelescopesTab />}
       {tab === 'mounts' && <MountsTab />}
       {tab === 'filters' && <FiltersTab />}
+      {tab === 'locations' && <LocationsTab />}
     </div>
   )
 }
@@ -391,6 +395,53 @@ function FiltersTab() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="e.g. Ha"
+          />
+        </div>
+        <button type="submit" className="btn btn-primary">
+          Add
+        </button>
+      </form>
+    </div>
+  )
+}
+
+function LocationsTab() {
+  const locations = byDescription(useCollection<Location>('locations'))
+  const [description, setDescription] = useState('')
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault()
+    if (!description.trim()) return
+    await putDoc<Location>('locations', { id: newId(), description: description.trim(), dateAdded: nowIso() })
+    setDescription('')
+  }
+
+  async function remove(id: string) {
+    await removeDoc('locations', id)
+  }
+
+  if (!locations) return null
+
+  return (
+    <div>
+      <div className="card">
+        {locations.length === 0 && <div className="muted">No locations added yet.</div>}
+        {locations.map((l) => (
+          <div className="list-item" key={l.id}>
+            <span>{l.description}</span>
+            <button className="icon-btn" onClick={() => remove(l.id)} aria-label="Remove">
+              <IconClose />
+            </button>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
+        <div className="form-field">
+          <label>Description</label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. Remote Observatory - Utah"
           />
         </div>
         <button type="submit" className="btn btn-primary">

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { putDoc, removeDoc, useCollection, useDocument } from '../firebase/firestoreDb'
+import { bulkPut, putDoc, removeDoc, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus } from '../types/models'
+import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus, type Project } from '../types/models'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
 
@@ -12,6 +12,7 @@ export function FrameForm() {
   const isEdit = Boolean(frameId)
 
   const existing = useDocument<Frame>('frames', frameId)
+  const project = useDocument<Project>('projects', projectId)
   const filtersRaw = useCollection<FilterDef>('filters')
   const filters = filtersRaw && sortFilters(filtersRaw)
 
@@ -27,6 +28,7 @@ export function FrameForm() {
   const [filePathPattern, setFilePathPattern] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
+  const [duplicateToFilterIds, setDuplicateToFilterIds] = useState<string[]>([])
 
   if (isEdit && existing && !loaded) {
     setFrameType(existing.frameType)
@@ -47,6 +49,20 @@ export function FrameForm() {
   if (!filters || !projectId || !sessionId) return null
 
   const totalSeconds = count * exposureSeconds
+
+  // Filters this batch could be duplicated to in one step - the project's
+  // own planned filters when set (the common case: mono imaging through a
+  // known filter set like S/Ha/OIII), otherwise every filter on record -
+  // always excluding whichever filter this batch itself already uses.
+  const duplicateCandidates = (
+    project && project.filterIds.length > 0
+      ? filters.filter((f) => project.filterIds.includes(f.id))
+      : filters
+  ).filter((f) => f.id !== filterId)
+
+  function toggleDuplicateFilter(id: string) {
+    setDuplicateToFilterIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -74,6 +90,17 @@ export function FrameForm() {
       const frame: Frame = { id: newId(), createdAt: nowIso(), ...base }
       await putDoc<Frame>('frames', frame)
     }
+
+    if (duplicateToFilterIds.length > 0) {
+      const duplicates: Frame[] = duplicateToFilterIds.map((dupFilterId) => ({
+        ...base,
+        id: newId(),
+        filterId: dupFilterId,
+        createdAt: nowIso(),
+      }))
+      await bulkPut<Frame>('frames', duplicates)
+    }
+
     navigate(`/projects/${projectId}/sessions/${sessionId}`)
   }
 
@@ -205,6 +232,29 @@ export function FrameForm() {
           <label htmlFor="notes">Notes</label>
           <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
+
+        {duplicateCandidates.length > 0 && (
+          <div className="form-field">
+            <label>Also create identical batches for</label>
+            <div className="card">
+              {duplicateCandidates.map((f) => (
+                <label key={f.id} className="list-item" style={{ cursor: 'pointer' }}>
+                  <span>{f.description}</span>
+                  <input
+                    type="checkbox"
+                    checked={duplicateToFilterIds.includes(f.id)}
+                    onChange={() => toggleDuplicateFilter(f.id)}
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="muted" style={{ marginTop: '0.25rem' }}>
+              Copies everything above except the filter - count, exposure, gain, temp, etc. -
+              into a new batch per filter checked, so you only need to adjust the count
+              afterward if it was different.
+            </div>
+          </div>
+        )}
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-block">
