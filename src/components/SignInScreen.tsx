@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { signInWithGoogle, signInWithTestAccount } from '../firebase/auth'
+import { signInWithGoogle, signInWithTestAccount, useRedirectSignInError } from '../firebase/auth'
 
 const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true'
 
 export function SignInScreen() {
+  const redirectError = useRedirectSignInError()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [testEmail, setTestEmail] = useState('test@example.com')
@@ -42,7 +43,7 @@ export function SignInScreen() {
       <button className="btn btn-primary" onClick={handleSignIn} disabled={pending}>
         {pending ? 'Signing in…' : 'Sign in with Google'}
       </button>
-      {error && <p className="muted">{error}</p>}
+      {(error || redirectError) && <p className="muted">{error || redirectError}</p>}
 
       {useEmulator && (
         <div className="card" style={{ marginTop: '2rem', textAlign: 'left' }}>
