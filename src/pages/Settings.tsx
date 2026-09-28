@@ -1,18 +1,36 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, nowIso } from '../db/db'
+import { putDoc, removeDoc, useCollection } from '../firebase/firestoreDb'
+import { newId, nowIso } from '../lib/ids'
 import { IconClose } from '../components/icons'
+import { findCameraSpec, searchCameraCatalog, type CameraSpec } from '../data/cameraCatalog'
+import type { Camera, FilterDef, Mount, Telescope } from '../types/models'
+import { signOutUser, useAuthUser } from '../firebase/auth'
+
+function byDescription<T extends { description: string }>(items: T[] | undefined): T[] | undefined {
+  return items && [...items].sort((a, b) => a.description.localeCompare(b.description))
+}
 
 type Tab = 'cameras' | 'telescopes' | 'mounts' | 'filters'
 
 export function Settings() {
   const [tab, setTab] = useState<Tab>('cameras')
+  const { user } = useAuthUser()
 
   return (
     <div>
       <div className="page-header">
         <h2>Settings</h2>
       </div>
+
+      {user && (
+        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="muted">Signed in as {user.email}</span>
+          <button className="btn btn-sm" onClick={() => signOutUser()}>
+            Sign out
+          </button>
+        </div>
+      )}
+
       <div className="tabs">
         <button className={tab === 'cameras' ? 'active' : ''} onClick={() => setTab('cameras')}>
           Cameras
@@ -39,25 +57,62 @@ export function Settings() {
 }
 
 function CamerasTab() {
-  const cameras = useLiveQuery(() => db.cameras.orderBy('description').toArray(), [])
+  const cameras = byDescription(useCollection<Camera>('cameras'))
   const [description, setDescription] = useState('')
   const [cameraType, setCameraType] = useState('')
+  const [sensorWidthMm, setSensorWidthMm] = useState('')
+  const [sensorHeightMm, setSensorHeightMm] = useState('')
+  const [pixelSizeUm, setPixelSizeUm] = useState('')
+  const [resolutionWidthPx, setResolutionWidthPx] = useState('')
+  const [resolutionHeightPx, setResolutionHeightPx] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestions = showSuggestions ? searchCameraCatalog(description) : []
+
+  function applySpec(spec: CameraSpec) {
+    setDescription(spec.model)
+    setCameraType(spec.sensorType)
+    setSensorWidthMm(String(spec.sensorWidthMm))
+    setSensorHeightMm(String(spec.sensorHeightMm))
+    setPixelSizeUm(String(spec.pixelSizeUm))
+    setResolutionWidthPx(String(spec.resolutionWidthPx))
+    setResolutionHeightPx(String(spec.resolutionHeightPx))
+    setShowSuggestions(false)
+  }
+
+  function handleDescriptionBlur() {
+    setTimeout(() => setShowSuggestions(false), 150)
+    // If specs are still blank, see if the typed name matches a known model.
+    if (!sensorWidthMm) {
+      const spec = findCameraSpec(description)
+      if (spec) applySpec(spec)
+    }
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.cameras.add({
+    await putDoc<Camera>('cameras', {
       id: newId(),
       description: description.trim(),
       cameraType: cameraType.trim() || undefined,
+      sensorWidthMm: sensorWidthMm ? Number(sensorWidthMm) : undefined,
+      sensorHeightMm: sensorHeightMm ? Number(sensorHeightMm) : undefined,
+      pixelSizeUm: pixelSizeUm ? Number(pixelSizeUm) : undefined,
+      resolutionWidthPx: resolutionWidthPx ? Number(resolutionWidthPx) : undefined,
+      resolutionHeightPx: resolutionHeightPx ? Number(resolutionHeightPx) : undefined,
       dateAdded: nowIso(),
     })
     setDescription('')
     setCameraType('')
+    setSensorWidthMm('')
+    setSensorHeightMm('')
+    setPixelSizeUm('')
+    setResolutionWidthPx('')
+    setResolutionHeightPx('')
   }
 
   async function remove(id: string) {
-    await db.cameras.delete(id)
+    await removeDoc('cameras', id)
   }
 
   if (!cameras) return null
@@ -70,6 +125,13 @@ function CamerasTab() {
           <div className="list-item" key={c.id}>
             <span>
               {c.description} {c.cameraType && <span className="muted">({c.cameraType})</span>}
+              {c.sensorWidthMm && c.pixelSizeUm && (
+                <div className="muted" style={{ fontSize: '0.78rem' }}>
+                  {c.sensorWidthMm} &times; {c.sensorHeightMm}mm &middot; {c.pixelSizeUm}
+                  {'µ'}m pixels
+                  {c.resolutionWidthPx && ` · ${c.resolutionWidthPx}×${c.resolutionHeightPx}`}
+                </div>
+              )}
             </span>
             <button className="icon-btn" onClick={() => remove(c.id)} aria-label="Remove">
               <IconClose />
@@ -77,23 +139,97 @@ function CamerasTab() {
           </div>
         ))}
       </div>
-      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field">
-          <label>Description</label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. ZWO ASI2600MM Pro"
-          />
+      <form onSubmit={add}>
+        <div className="form-row">
+          <div className="form-field autocomplete-wrap">
+            <label>Description</label>
+            <input
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                setSensorWidthMm('')
+                setSensorHeightMm('')
+                setPixelSizeUm('')
+                setResolutionWidthPx('')
+                setResolutionHeightPx('')
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={handleDescriptionBlur}
+              autoComplete="off"
+              placeholder="e.g. ZWO ASI2600MM Pro"
+            />
+            {suggestions.length > 0 && (
+              <ul className="suggestion-list">
+                {suggestions.map((s) => (
+                  <li key={s.model}>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applySpec(s) }}>
+                      {s.model}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="form-field" style={{ flex: '0 0 7rem' }}>
+            <label>Type</label>
+            <input
+              value={cameraType}
+              onChange={(e) => setCameraType(e.target.value)}
+              placeholder="e.g. Mono"
+            />
+          </div>
         </div>
-        <div className="form-field" style={{ flex: '0 0 8rem' }}>
-          <label>Type</label>
-          <input
-            value={cameraType}
-            onChange={(e) => setCameraType(e.target.value)}
-            placeholder="e.g. Mono"
-          />
-        </div>
+
+        {(sensorWidthMm || sensorHeightMm || pixelSizeUm) && (
+          <div className="form-row">
+            <div className="form-field">
+              <label>Sensor (mm)</label>
+              <div className="form-row" style={{ gap: '0.4rem' }}>
+                <input
+                  value={sensorWidthMm}
+                  onChange={(e) => setSensorWidthMm(e.target.value)}
+                  placeholder="width"
+                  type="number"
+                  step="0.1"
+                />
+                <input
+                  value={sensorHeightMm}
+                  onChange={(e) => setSensorHeightMm(e.target.value)}
+                  placeholder="height"
+                  type="number"
+                  step="0.1"
+                />
+              </div>
+            </div>
+            <div className="form-field" style={{ flex: '0 0 6rem' }}>
+              <label>Pixel ({'µ'}m)</label>
+              <input
+                value={pixelSizeUm}
+                onChange={(e) => setPixelSizeUm(e.target.value)}
+                type="number"
+                step="0.01"
+              />
+            </div>
+            <div className="form-field">
+              <label>Resolution (px)</label>
+              <div className="form-row" style={{ gap: '0.4rem' }}>
+                <input
+                  value={resolutionWidthPx}
+                  onChange={(e) => setResolutionWidthPx(e.target.value)}
+                  placeholder="width"
+                  type="number"
+                />
+                <input
+                  value={resolutionHeightPx}
+                  onChange={(e) => setResolutionHeightPx(e.target.value)}
+                  placeholder="height"
+                  type="number"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         <button type="submit" className="btn btn-primary">
           Add
         </button>
@@ -103,14 +239,14 @@ function CamerasTab() {
 }
 
 function TelescopesTab() {
-  const telescopes = useLiveQuery(() => db.telescopes.orderBy('description').toArray(), [])
+  const telescopes = byDescription(useCollection<Telescope>('telescopes'))
   const [description, setDescription] = useState('')
   const [focalLength, setFocalLength] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.telescopes.add({
+    await putDoc<Telescope>('telescopes', {
       id: newId(),
       description: description.trim(),
       focalLength: focalLength.trim() || undefined,
@@ -121,7 +257,7 @@ function TelescopesTab() {
   }
 
   async function remove(id: string) {
-    await db.telescopes.delete(id)
+    await removeDoc('telescopes', id)
   }
 
   if (!telescopes) return null
@@ -167,18 +303,18 @@ function TelescopesTab() {
 }
 
 function MountsTab() {
-  const mounts = useLiveQuery(() => db.mounts.orderBy('description').toArray(), [])
+  const mounts = byDescription(useCollection<Mount>('mounts'))
   const [description, setDescription] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.mounts.add({ id: newId(), description: description.trim(), dateAdded: nowIso() })
+    await putDoc<Mount>('mounts', { id: newId(), description: description.trim(), dateAdded: nowIso() })
     setDescription('')
   }
 
   async function remove(id: string) {
-    await db.mounts.delete(id)
+    await removeDoc('mounts', id)
   }
 
   if (!mounts) return null
@@ -214,18 +350,18 @@ function MountsTab() {
 }
 
 function FiltersTab() {
-  const filters = useLiveQuery(() => db.filters.orderBy('description').toArray(), [])
+  const filters = byDescription(useCollection<FilterDef>('filters'))
   const [description, setDescription] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await db.filters.add({ id: newId(), description: description.trim(), dateAdded: nowIso() })
+    await putDoc<FilterDef>('filters', { id: newId(), description: description.trim(), dateAdded: nowIso() })
     setDescription('')
   }
 
   async function remove(id: string) {
-    await db.filters.delete(id)
+    await removeDoc('filters', id)
   }
 
   if (!filters) return null

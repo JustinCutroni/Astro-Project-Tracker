@@ -3,19 +3,22 @@
 A project tracker for astrophotography: plan projects, log imaging sessions
 across multiple nights/locations/filters, and see integration-time totals per
 target. Built as an installable web app (PWA) so it works on your phone or in
-a browser, **online or off** — no backend, no account, no recurring cost.
+a browser, **online or off**, and syncs across every device you sign into.
 
 ## Why this shape
 
 - **PWA, not native apps.** One React codebase, installable to your phone's
   home screen and usable in any desktop browser. No app store fees.
-- **Local-first.** All data lives in the browser's IndexedDB via
-  [Dexie](https://dexie.org/). It works standing at the telescope with zero
-  signal, and there's no server to pay for or keep alive.
+- **Offline-first, with real sync.** Data lives in Firestore's local
+  persistent cache (backed by IndexedDB) and syncs automatically once you're
+  back online. It works standing at the telescope with zero signal, and the
+  same data shows up on your other devices without you doing anything.
+- **One sign-in, one free Firebase project.** Sync needs to know whose data
+  it's syncing, so there's a one-time "Sign in with Google" step per device.
+  Firebase's free tier (1 GiB storage, 50K reads/20K writes per day) is far
+  more than one person's astrophotography log will ever use - see
+  **Setting up your own Firebase project** below.
 - **Free hosting.** Deploys to GitHub Pages via GitHub Actions — `$0/month`.
-
-Cross-device sync (phone at the remote observatory ↔ home computer) is not
-built yet. See **Roadmap** below for the plan to add it cheaply.
 
 ## What's tracked today
 
@@ -40,12 +43,51 @@ so the two can be reconciled or synced later without another reshape:
 
 ## Running it locally
 
+Needs a `.env.local` with Firebase config first - see **Setting up your own
+Firebase project** below, or **Testing sync locally** to run against the
+local emulator instead of a real project.
+
 ```bash
 npm install
 npm run dev       # dev server at http://localhost:5173
 npm run build     # production build to dist/
 npm run preview   # serve the production build locally
 ```
+
+## Setting up your own Firebase project
+
+This app needs a Firebase project to sync through - a one-time setup, done
+in your own Google account:
+
+1. Go to the [Firebase console](https://console.firebase.google.com/) →
+   **Add project** → give it any name (e.g. "astro-project-tracker") →
+   you can decline Google Analytics, it's not needed.
+2. **Build → Firestore Database → Create database** → start in
+   **production mode** (the rules in `firestore.rules`, already in this
+   repo, lock every document to its owner - see below for how to publish
+   them) → pick any region close to you.
+3. **Build → Authentication → Get started → Sign-in method → Google** →
+   enable it.
+4. **Project settings** (gear icon) → scroll to **Your apps** → click the
+   web icon (`</>`) → register an app (any nickname, no hosting needed) →
+   copy the `firebaseConfig` values shown.
+5. Set those values as **GitHub Actions repository secrets**
+   (repo → Settings → Secrets and variables → Actions → New repository
+   secret), one per line in `.env.example`: `VITE_FIREBASE_API_KEY`,
+   `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`,
+   `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`,
+   `VITE_FIREBASE_APP_ID`. The deploy workflow reads these at build time.
+6. Publish the security rules so only you can read/write your data: install
+   the Firebase CLI (`npm install -g firebase-tools`), run `firebase login`,
+   then from this repo run `firebase deploy --only firestore:rules --project
+   <your-project-id>`.
+7. For local development, copy `.env.example` to `.env.local` and fill in
+   the same values (leave `VITE_USE_FIREBASE_EMULATOR=false` unless you're
+   running `firebase emulators:start` for testing).
+
+None of these config values are secret - Firestore access is controlled by
+`firestore.rules`, not by hiding them - but they're still cleaner to manage
+as secrets/env vars than hardcoded in source.
 
 ## Deploying (GitHub Pages, free)
 
@@ -84,6 +126,12 @@ the browser bundle would expose it to anyone who opens dev tools. The
 catalog is just a starting point, not a constraint - the field stays plain
 free text for anything not listed.
 
+The camera description field in Settings works the same way: type or pick a
+known model (e.g. "ASI2600MM") and its sensor size, pixel size, and
+resolution fill in automatically from a small bundled catalog of common
+astrophotography cameras. Same reasoning - offline, free, and every field
+stays editable since the catalog won't have every camera.
+
 ## Night mode
 
 The moon icon in the header switches to a monochrome red palette (black
@@ -94,19 +142,25 @@ the eyepiece, and remembers your choice on that device.
 
 Rough order, biased toward what's cheapest to run:
 
-1. **Cross-device sync, free tier first** — most likely the Google Sheets
-   API (reusing the Google account already in use for the existing AppSheet
-   version) as a lightweight, free sync layer, since it means data entered
-   on the phone at the observatory shows up at the home computer without
-   standing up a paid backend.
-2. **Planning tools** — target visibility windows, moon-phase-aware
+1. **Planning tools** — target visibility windows, moon-phase-aware
    scheduling, and a backlog of "up next" targets.
-3. **Publishing links** — richer tracking of where/when a finished image
+2. **Publishing links** — richer tracking of where/when a finished image
    was published (AstroBin, etc.).
 
 ## Tech stack
 
 React + TypeScript + Vite, React Router (hash-based routing, so it works
-from any subpath without server config), Dexie (IndexedDB), and
-`vite-plugin-pwa` for the service worker/manifest that make it installable
-and offline-capable.
+from any subpath without server config), Firebase Auth (Google sign-in) +
+Firestore (with persistent local cache for offline support and realtime
+sync across devices), and `vite-plugin-pwa` for the service worker/manifest
+that make it installable.
+
+## Testing sync locally
+
+`firebase emulators:start` runs Firestore + Auth locally (no real Firebase
+project needed - `.env.local` points the app at `demo-astro-tracker`, a
+purely local project ID). The emulator's Google sign-in popup can't
+complete without real network access to Google, so a small "Emulator test
+sign-in" form appears on the sign-in screen when
+`VITE_USE_FIREBASE_EMULATOR=true` - it's compiled out of any real
+deployment, where that env var is unset.

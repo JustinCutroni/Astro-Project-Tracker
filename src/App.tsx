@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { SignInScreen } from './components/SignInScreen'
 import { Dashboard } from './pages/Dashboard'
 import { Projects } from './pages/Projects'
 import { ProjectForm } from './pages/ProjectForm'
@@ -10,12 +11,18 @@ import { SessionDetail } from './pages/SessionDetail'
 import { FrameForm } from './pages/FrameForm'
 import { ImportSessionLog } from './pages/ImportSessionLog'
 import { Settings } from './pages/Settings'
-import { seedDefaultsIfEmpty } from './db/db'
+import { useAuthUser } from './firebase/auth'
+import { seedDefaultFiltersIfEmpty } from './firebase/firestoreDb'
 
 function App() {
+  const { user, loading } = useAuthUser()
+
   useEffect(() => {
-    seedDefaultsIfEmpty()
-  }, [])
+    if (user) seedDefaultFiltersIfEmpty()
+  }, [user])
+
+  if (loading) return null
+  if (!user) return <SignInScreen />
 
   return (
     <HashRouter>

@@ -1,24 +1,24 @@
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useParams } from 'react-router-dom'
-import { db } from '../db/db'
+import { useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_DOT, PIPELINE_STATUS_LABEL } from '../lib/status'
-import { integrationMinutesForFrames, totalExposureSeconds } from '../types/models'
+import {
+  integrationMinutesForFrames,
+  totalExposureSeconds,
+  type FilterDef,
+  type Frame,
+  type Project,
+  type Session,
+} from '../types/models'
 
 export function SessionDetail() {
   const { projectId, sessionId } = useParams()
 
-  const session = useLiveQuery(
-    () => (sessionId ? db.sessions.get(sessionId) : undefined),
-    [sessionId],
-  )
-  const frames = useLiveQuery(
-    () => (sessionId ? db.frames.where('sessionId').equals(sessionId).toArray() : []),
-    [sessionId],
-  )
-  const filters = useLiveQuery(() => db.filters.toArray(), [])
-  const project = useLiveQuery(() => (projectId ? db.projects.get(projectId) : undefined), [projectId])
+  const session = useDocument<Session>('sessions', sessionId)
+  const frames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
+  const filters = useCollection<FilterDef>('filters')
+  const project = useDocument<Project>('projects', projectId)
 
   if (!session || !frames || !filters || !projectId) return null
 

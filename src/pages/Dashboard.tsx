@@ -1,15 +1,14 @@
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Link } from 'react-router-dom'
-import { db } from '../db/db'
+import { useCollection } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatMinutes } from '../lib/format'
 import { PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
-import { integrationMinutesForFrames } from '../types/models'
+import { integrationMinutesForFrames, type Frame, type Project, type Session } from '../types/models'
 
 export function Dashboard() {
-  const projects = useLiveQuery(() => db.projects.toArray(), [])
-  const sessions = useLiveQuery(() => db.sessions.toArray(), [])
-  const frames = useLiveQuery(() => db.frames.toArray(), [])
+  const projects = useCollection<Project>('projects')
+  const sessions = useCollection<Session>('sessions')
+  const frames = useCollection<Frame>('frames')
 
   if (!projects || !sessions || !frames) return null
 

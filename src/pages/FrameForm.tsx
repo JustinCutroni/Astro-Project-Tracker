@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId, nowIso } from '../db/db'
-import { FRAME_TYPES, PIPELINE_STATUSES, type Frame, type FrameType, type PipelineStatus } from '../types/models'
+import { putDoc, removeDoc, useCollection, useDocument } from '../firebase/firestoreDb'
+import { newId, nowIso } from '../lib/ids'
+import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus } from '../types/models'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
 
 export function FrameForm() {
@@ -10,8 +10,9 @@ export function FrameForm() {
   const navigate = useNavigate()
   const isEdit = Boolean(frameId)
 
-  const existing = useLiveQuery(() => (frameId ? db.frames.get(frameId) : undefined), [frameId])
-  const filters = useLiveQuery(() => db.filters.orderBy('description').toArray(), [])
+  const existing = useDocument<Frame>('frames', frameId)
+  const filtersRaw = useCollection<FilterDef>('filters')
+  const filters = filtersRaw && [...filtersRaw].sort((a, b) => a.description.localeCompare(b.description))
 
   const [frameType, setFrameType] = useState<FrameType>('light')
   const [filterId, setFilterId] = useState('')
@@ -67,10 +68,10 @@ export function FrameForm() {
     }
 
     if (isEdit && existing) {
-      await db.frames.put({ ...existing, ...base })
+      await putDoc<Frame>('frames', { ...existing, ...base })
     } else {
       const frame: Frame = { id: newId(), createdAt: nowIso(), ...base }
-      await db.frames.add(frame)
+      await putDoc<Frame>('frames', frame)
     }
     navigate(`/projects/${projectId}/sessions/${sessionId}`)
   }
@@ -78,7 +79,7 @@ export function FrameForm() {
   async function handleDelete() {
     if (!existing) return
     if (!confirm('Delete this frame batch?')) return
-    await db.frames.delete(existing.id)
+    await removeDoc('frames', existing.id)
     navigate(`/projects/${projectId}/sessions/${sessionId}`)
   }
 
