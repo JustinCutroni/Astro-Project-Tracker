@@ -58,24 +58,50 @@ Install it on your phone from that URL: open it in the browser and choose
 "Add to Home Screen" (iOS Safari) or "Install app" (Android Chrome). It then
 launches full-screen and works offline.
 
+## ASIAIR Autorun log import
+
+From a project page, **Import log** lets you paste or upload the
+`Autorun_Log_*.txt` file ASIAIR writes during a session, and drafts that
+session's frame batches from it automatically: frame type, exposure length,
+binning, an approximate temperature, and - critically - the *actual* number
+of subs completed, recovered by counting per-image log lines rather than
+trusting the planned count (so an interrupted run shows 7 of 130, not 130).
+Runs entirely client-side, so it stays free and works offline.
+
+It can't recover which filter was mounted, or gain/offset - ASIAIR doesn't
+write those to this log - so those stay editable blanks for you to fill in
+during review, before anything is saved.
+
+## Target autocomplete
+
+The project "target" field suggests matches as you type, from a small
+offline catalog (the full Messier catalog plus ~50 popular NGC/IC/Sharpless
+astrophotography targets) bundled with the app - not a live API call. That's
+deliberate: a public astronomy name-lookup API (like the one a similar
+open-source project uses) generally requires an API key, and a client-only
+app like this one has no backend to hide that key behind - embedding it in
+the browser bundle would expose it to anyone who opens dev tools. The
+catalog is just a starting point, not a constraint - the field stays plain
+free text for anything not listed.
+
+## Night mode
+
+The moon icon in the header switches to a monochrome red palette (black
+background, red-only text and status colors) for preserving night vision at
+the eyepiece, and remembers your choice on that device.
+
 ## Roadmap
 
 Rough order, biased toward what's cheapest to run:
 
-1. **ASIAIR Autorun log import** — paste/upload the `Autorun_Log_*.txt` file
-   ASIAIR produces after a session and auto-draft the session's frame
-   batches from it (frame type, filter, exposure, count, temperature),
-   instead of typing each batch by hand. Runs entirely in the browser, so it
-   stays free and works offline; the file only exists after the session
-   ends, so this is a post-session import, not a live feed.
-2. **Cross-device sync, free tier first** — most likely the Google Sheets
+1. **Cross-device sync, free tier first** — most likely the Google Sheets
    API (reusing the Google account already in use for the existing AppSheet
    version) as a lightweight, free sync layer, since it means data entered
    on the phone at the observatory shows up at the home computer without
    standing up a paid backend.
-3. **Planning tools** — target visibility windows, moon-phase-aware
+2. **Planning tools** — target visibility windows, moon-phase-aware
    scheduling, and a backlog of "up next" targets.
-4. **Publishing links** — richer tracking of where/when a finished image
+3. **Publishing links** — richer tracking of where/when a finished image
    was published (AstroBin, etc.).
 
 ## Tech stack

@@ -5,6 +5,7 @@ import { db, newId, nowIso } from '../db/db'
 import { PROJECT_STATUSES, type Project, type ProjectStatus } from '../types/models'
 import { PROJECT_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
+import { formatTarget, searchTargets } from '../lib/targetSearch'
 
 export function ProjectForm() {
   const { id } = useParams()
@@ -30,6 +31,8 @@ export function ProjectForm() {
   const [mountId, setMountId] = useState('')
   const [filterIds, setFilterIds] = useState<string[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [showTargetSuggestions, setShowTargetSuggestions] = useState(false)
+  const targetSuggestions = showTargetSuggestions ? searchTargets(target) : []
 
   if (isEdit && existing && !loaded) {
     setTarget(existing.target)
@@ -91,15 +94,36 @@ export function ProjectForm() {
         <h2>{isEdit ? 'Edit project' : 'New project'}</h2>
       </div>
       <form onSubmit={handleSubmit}>
-        <div className="form-field">
+        <div className="form-field autocomplete-wrap">
           <label htmlFor="target">Target *</label>
           <input
             id="target"
             placeholder="e.g. M31 - Andromeda Galaxy"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
+            onFocus={() => setShowTargetSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowTargetSuggestions(false), 150)}
+            autoComplete="off"
             required
           />
+          {targetSuggestions.length > 0 && (
+            <ul className="suggestion-list">
+              {targetSuggestions.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      setTarget(formatTarget(s))
+                      setShowTargetSuggestions(false)
+                    }}
+                  >
+                    {formatTarget(s)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="form-field">
           <label htmlFor="projectName">Project name (optional)</label>
