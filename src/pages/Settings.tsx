@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, newId } from '../db/db'
-import type { Equipment } from '../types/models'
+import { db, newId, nowIso } from '../db/db'
 
-type Tab = 'equipment' | 'filters' | 'locations'
+type Tab = 'cameras' | 'telescopes' | 'mounts' | 'filters'
 
 export function Settings() {
-  const [tab, setTab] = useState<Tab>('equipment')
+  const [tab, setTab] = useState<Tab>('cameras')
 
   return (
     <div>
@@ -14,51 +13,64 @@ export function Settings() {
         <h2>Settings</h2>
       </div>
       <div className="tabs">
-        <button className={tab === 'equipment' ? 'active' : ''} onClick={() => setTab('equipment')}>
-          Equipment
+        <button className={tab === 'cameras' ? 'active' : ''} onClick={() => setTab('cameras')}>
+          Cameras
+        </button>
+        <button
+          className={tab === 'telescopes' ? 'active' : ''}
+          onClick={() => setTab('telescopes')}
+        >
+          Telescopes
+        </button>
+        <button className={tab === 'mounts' ? 'active' : ''} onClick={() => setTab('mounts')}>
+          Mounts
         </button>
         <button className={tab === 'filters' ? 'active' : ''} onClick={() => setTab('filters')}>
           Filters
         </button>
-        <button className={tab === 'locations' ? 'active' : ''} onClick={() => setTab('locations')}>
-          Locations
-        </button>
       </div>
-      {tab === 'equipment' && <EquipmentTab />}
+      {tab === 'cameras' && <CamerasTab />}
+      {tab === 'telescopes' && <TelescopesTab />}
+      {tab === 'mounts' && <MountsTab />}
       {tab === 'filters' && <FiltersTab />}
-      {tab === 'locations' && <LocationsTab />}
     </div>
   )
 }
 
-function EquipmentTab() {
-  const equipment = useLiveQuery(() => db.equipment.orderBy('name').toArray(), [])
-  const [name, setName] = useState('')
-  const [type, setType] = useState<Equipment['type']>('telescope')
+function CamerasTab() {
+  const cameras = useLiveQuery(() => db.cameras.orderBy('description').toArray(), [])
+  const [description, setDescription] = useState('')
+  const [cameraType, setCameraType] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
-    await db.equipment.add({ id: newId(), name: name.trim(), type })
-    setName('')
+    if (!description.trim()) return
+    await db.cameras.add({
+      id: newId(),
+      description: description.trim(),
+      cameraType: cameraType.trim() || undefined,
+      dateAdded: nowIso(),
+    })
+    setDescription('')
+    setCameraType('')
   }
 
   async function remove(id: string) {
-    await db.equipment.delete(id)
+    await db.cameras.delete(id)
   }
 
-  if (!equipment) return null
+  if (!cameras) return null
 
   return (
     <div>
       <div className="card">
-        {equipment.length === 0 && <div className="muted">No equipment added yet.</div>}
-        {equipment.map((eq) => (
-          <div className="list-item" key={eq.id}>
+        {cameras.length === 0 && <div className="muted">No cameras added yet.</div>}
+        {cameras.map((c) => (
+          <div className="list-item" key={c.id}>
             <span>
-              {eq.name} <span className="muted">({eq.type})</span>
+              {c.description} {c.cameraType && <span className="muted">({c.cameraType})</span>}
             </span>
-            <button className="icon-btn" onClick={() => remove(eq.id)} aria-label="Remove">
+            <button className="icon-btn" onClick={() => remove(c.id)} aria-label="Remove">
               &#x2715;
             </button>
           </div>
@@ -66,18 +78,131 @@ function EquipmentTab() {
       </div>
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
         <div className="form-field">
-          <label>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 8in RC Telescope" />
+          <label>Description</label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. ZWO ASI2600MM Pro"
+          />
         </div>
-        <div className="form-field" style={{ flex: '0 0 9rem' }}>
+        <div className="form-field" style={{ flex: '0 0 8rem' }}>
           <label>Type</label>
-          <select value={type} onChange={(e) => setType(e.target.value as Equipment['type'])}>
-            <option value="telescope">Telescope</option>
-            <option value="camera">Camera</option>
-            <option value="mount">Mount</option>
-            <option value="filter-wheel">Filter wheel</option>
-            <option value="other">Other</option>
-          </select>
+          <input
+            value={cameraType}
+            onChange={(e) => setCameraType(e.target.value)}
+            placeholder="e.g. Mono"
+          />
+        </div>
+        <button type="submit" className="btn btn-primary">
+          Add
+        </button>
+      </form>
+    </div>
+  )
+}
+
+function TelescopesTab() {
+  const telescopes = useLiveQuery(() => db.telescopes.orderBy('description').toArray(), [])
+  const [description, setDescription] = useState('')
+  const [focalLength, setFocalLength] = useState('')
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault()
+    if (!description.trim()) return
+    await db.telescopes.add({
+      id: newId(),
+      description: description.trim(),
+      focalLength: focalLength.trim() || undefined,
+      dateAdded: nowIso(),
+    })
+    setDescription('')
+    setFocalLength('')
+  }
+
+  async function remove(id: string) {
+    await db.telescopes.delete(id)
+  }
+
+  if (!telescopes) return null
+
+  return (
+    <div>
+      <div className="card">
+        {telescopes.length === 0 && <div className="muted">No telescopes added yet.</div>}
+        {telescopes.map((t) => (
+          <div className="list-item" key={t.id}>
+            <span>
+              {t.description} {t.focalLength && <span className="muted">({t.focalLength}mm)</span>}
+            </span>
+            <button className="icon-btn" onClick={() => remove(t.id)} aria-label="Remove">
+              &#x2715;
+            </button>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
+        <div className="form-field">
+          <label>Description</label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. 8in RC Telescope"
+          />
+        </div>
+        <div className="form-field" style={{ flex: '0 0 7rem' }}>
+          <label>Focal length</label>
+          <input
+            value={focalLength}
+            onChange={(e) => setFocalLength(e.target.value)}
+            placeholder="1600"
+          />
+        </div>
+        <button type="submit" className="btn btn-primary">
+          Add
+        </button>
+      </form>
+    </div>
+  )
+}
+
+function MountsTab() {
+  const mounts = useLiveQuery(() => db.mounts.orderBy('description').toArray(), [])
+  const [description, setDescription] = useState('')
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault()
+    if (!description.trim()) return
+    await db.mounts.add({ id: newId(), description: description.trim(), dateAdded: nowIso() })
+    setDescription('')
+  }
+
+  async function remove(id: string) {
+    await db.mounts.delete(id)
+  }
+
+  if (!mounts) return null
+
+  return (
+    <div>
+      <div className="card">
+        {mounts.length === 0 && <div className="muted">No mounts added yet.</div>}
+        {mounts.map((m) => (
+          <div className="list-item" key={m.id}>
+            <span>{m.description}</span>
+            <button className="icon-btn" onClick={() => remove(m.id)} aria-label="Remove">
+              &#x2715;
+            </button>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
+        <div className="form-field">
+          <label>Description</label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. EQ6-R Pro"
+          />
         </div>
         <button type="submit" className="btn btn-primary">
           Add
@@ -88,14 +213,14 @@ function EquipmentTab() {
 }
 
 function FiltersTab() {
-  const filters = useLiveQuery(() => db.filters.orderBy('name').toArray(), [])
-  const [name, setName] = useState('')
+  const filters = useLiveQuery(() => db.filters.orderBy('description').toArray(), [])
+  const [description, setDescription] = useState('')
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
-    await db.filters.add({ id: newId(), name: name.trim() })
-    setName('')
+    if (!description.trim()) return
+    await db.filters.add({ id: newId(), description: description.trim(), dateAdded: nowIso() })
+    setDescription('')
   }
 
   async function remove(id: string) {
@@ -110,7 +235,7 @@ function FiltersTab() {
         {filters.length === 0 && <div className="muted">No filters added yet.</div>}
         {filters.map((f) => (
           <div className="list-item" key={f.id}>
-            <span>{f.name}</span>
+            <span>{f.description}</span>
             <button className="icon-btn" onClick={() => remove(f.id)} aria-label="Remove">
               &#x2715;
             </button>
@@ -119,64 +244,13 @@ function FiltersTab() {
       </div>
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
         <div className="form-field">
-          <label>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ha" />
-        </div>
-        <button type="submit" className="btn btn-primary">
-          Add
-        </button>
-      </form>
-    </div>
-  )
-}
-
-function LocationsTab() {
-  const locations = useLiveQuery(() => db.locations.orderBy('name').toArray(), [])
-  const [name, setName] = useState('')
-  const [isRemote, setIsRemote] = useState(false)
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault()
-    if (!name.trim()) return
-    await db.locations.add({ id: newId(), name: name.trim(), isRemote })
-    setName('')
-    setIsRemote(false)
-  }
-
-  async function remove(id: string) {
-    await db.locations.delete(id)
-  }
-
-  if (!locations) return null
-
-  return (
-    <div>
-      <div className="card">
-        {locations.length === 0 && <div className="muted">No locations added yet.</div>}
-        {locations.map((loc) => (
-          <div className="list-item" key={loc.id}>
-            <span>
-              {loc.name} {loc.isRemote && <span className="muted">(remote)</span>}
-            </span>
-            <button className="icon-btn" onClick={() => remove(loc.id)} aria-label="Remove">
-              &#x2715;
-            </button>
-          </div>
-        ))}
-      </div>
-      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field">
-          <label>Name</label>
+          <label>Description</label>
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Remote Observatory - Utah"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. Ha"
           />
         </div>
-        <label className="form-field" style={{ flex: '0 0 6rem', flexDirection: 'row', alignItems: 'center', gap: '0.4rem' }}>
-          <input type="checkbox" checked={isRemote} onChange={(e) => setIsRemote(e.target.checked)} />
-          Remote
-        </label>
         <button type="submit" className="btn btn-primary">
           Add
         </button>

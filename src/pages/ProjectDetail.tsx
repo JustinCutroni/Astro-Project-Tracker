@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
-import { integrationMinutesForSession } from '../types/models'
+import { PIPELINE_STATUS_DOT, PIPELINE_STATUS_LABEL, PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
+import { integrationMinutesForFrames, totalExposureSeconds } from '../types/models'
 
 export function ProjectDetail() {
   const { id } = useParams()
@@ -14,44 +15,69 @@ export function ProjectDetail() {
     () => (id ? db.sessions.where('projectId').equals(id).toArray() : []),
     [id],
   )
-  const locations = useLiveQuery(() => db.locations.orderBy('name').toArray(), [])
-  const filters = useLiveQuery(() => db.filters.orderBy('name').toArray(), [])
-
-  if (!project || !sessions || !locations || !filters) return null
-
-  const sortedSessions = [...sessions].sort((a, b) => b.date.localeCompare(a.date))
-  const totalMinutes = sessions.reduce(
-    (sum, s) => sum + integrationMinutesForSession(s),
-    0,
+  const frames = useLiveQuery(
+    () => (id ? db.frames.where('projectId').equals(id).toArray() : []),
+    [id],
+  )
+  const filters = useLiveQuery(() => db.filters.toArray(), [])
+  const camera = useLiveQuery(
+    () => (project?.cameraId ? db.cameras.get(project.cameraId) : undefined),
+    [project?.cameraId],
+  )
+  const telescope = useLiveQuery(
+    () => (project?.telescopeId ? db.telescopes.get(project.telescopeId) : undefined),
+    [project?.telescopeId],
+  )
+  const mount = useLiveQuery(
+    () => (project?.mountId ? db.mounts.get(project.mountId) : undefined),
+    [project?.mountId],
   )
 
+  if (!project || !sessions || !frames || !filters) return null
+
+  const sortedSessions = [...sessions].sort((a, b) => b.date.localeCompare(a.date))
+  const totalMinutes = integrationMinutesForFrames(frames)
+
   const minutesByFilter = new Map<string, number>()
-  for (const session of sessions) {
-    for (const exp of session.exposures) {
-      const minutes = (exp.subExposureSeconds * exp.subCount) / 60
-      minutesByFilter.set(exp.filterId, (minutesByFilter.get(exp.filterId) || 0) + minutes)
-    }
+  for (const frame of frames) {
+    if (frame.frameType !== 'light' || !frame.filterId) continue
+    const minutes = totalExposureSeconds(frame) / 60
+    minutesByFilter.set(frame.filterId, (minutesByFilter.get(frame.filterId) || 0) + minutes)
   }
+
+  const plannedFilters = filters.filter((f) => project.filterIds.includes(f.id))
 
   async function handleDelete() {
     if (!project) return
-    if (!confirm(`Delete "${project.title || project.target}" and all its sessions?`)) return
-    await db.sessions.where('projectId').equals(project.id).delete()
+    if (!confirm(`Delete "${project.projectName || project.target}" and all its sessions?`)) return
+    const projectSessions = await db.sessions.where('projectId').equals(project.id).toArray()
+    await db.frames.where('projectId').equals(project.id).delete()
+    await db.sessions.bulkDelete(projectSessions.map((s) => s.id))
     await db.projects.delete(project.id)
     navigate('/projects')
   }
 
   return (
     <div>
+      <Link to="/projects" className="back-link">
+        &lsaquo; Projects
+      </Link>
       <div className="page-header">
         <div>
-          <h2>{project.title || project.target}</h2>
-          {project.title && <div className="muted">{project.target}</div>}
+          <h2>{project.projectName || project.target}</h2>
+          {project.projectName && <div className="muted">{project.target}</div>}
         </div>
-        <StatusBadge status={project.status} />
+        <StatusBadge
+          label={PROJECT_STATUS_LABEL[project.status]}
+          dot={PROJECT_STATUS_DOT[project.status]}
+        />
       </div>
 
-      {project.goal && <p>{project.goal}</p>}
+      <div className="muted" style={{ marginBottom: '0.75rem' }}>
+        {[project.location, camera?.description, telescope?.description, mount?.description]
+          .filter(Boolean)
+          .join(' · ')}
+      </div>
 
       <div className="stat-grid">
         <div className="stat-box">
@@ -60,7 +86,7 @@ export function ProjectDetail() {
         </div>
         <div className="stat-box">
           <div className="value">{formatMinutes(totalMinutes)}</div>
-          <div className="label">Total integration</div>
+          <div className="label">Total integration{project.goalHours ? ` / ${project.goalHours}h goal` : ''}</div>
         </div>
       </div>
 
@@ -70,7 +96,7 @@ export function ProjectDetail() {
             const filter = filters.find((f) => f.id === filterId)
             return (
               <div className="list-item" key={filterId}>
-                <span>{filter?.name || 'Unknown filter'}</span>
+                <span>{filter?.description || 'Unknown filter'}</span>
                 <span className="muted">{formatMinutes(minutes)}</span>
               </div>
             )
@@ -78,9 +104,19 @@ export function ProjectDetail() {
         </div>
       )}
 
-      {project.notes && (
+      {(plannedFilters.length > 0 || project.storageRoot || project.notes) && (
         <div className="card">
-          <div className="muted">{project.notes}</div>
+          {plannedFilters.length > 0 && (
+            <div className="muted" style={{ marginBottom: project.storageRoot || project.notes ? '0.5rem' : 0 }}>
+              Planned filters: {plannedFilters.map((f) => f.description).join(', ')}
+            </div>
+          )}
+          {project.storageRoot && (
+            <div className="muted" style={{ marginBottom: project.notes ? '0.5rem' : 0 }}>
+              Storage: {project.storageRoot}
+            </div>
+          )}
+          {project.notes && <div className="muted">{project.notes}</div>}
         </div>
       )}
 
@@ -102,8 +138,8 @@ export function ProjectDetail() {
       )}
 
       {sortedSessions.map((session) => {
-        const location = locations.find((l) => l.id === session.locationId)
-        const minutes = integrationMinutesForSession(session)
+        const sessionFrames = frames.filter((f) => f.sessionId === session.id)
+        const minutes = integrationMinutesForFrames(sessionFrames)
         return (
           <Link
             to={`/projects/${project.id}/sessions/${session.id}`}
@@ -113,12 +149,15 @@ export function ProjectDetail() {
             <div className="card">
               <div className="card-title-row">
                 <h3>{formatDate(session.date)}</h3>
-                <span className="muted">{formatMinutes(minutes)}</span>
+                <StatusBadge
+                  label={PIPELINE_STATUS_LABEL[session.status]}
+                  dot={PIPELINE_STATUS_DOT[session.status]}
+                />
               </div>
               <div className="muted">
-                {location?.name || 'No location set'}
-                {session.exposures.length > 0 &&
-                  ` · ${session.exposures.length} filter${session.exposures.length > 1 ? 's' : ''}`}
+                {session.location || 'No location set'}
+                {sessionFrames.length > 0 &&
+                  ` · ${formatMinutes(minutes)} · ${sessionFrames.length} frame batch${sessionFrames.length > 1 ? 'es' : ''}`}
               </div>
             </div>
           </Link>

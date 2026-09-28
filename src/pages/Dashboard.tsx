@@ -3,21 +3,20 @@ import { Link } from 'react-router-dom'
 import { db } from '../db/db'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatMinutes } from '../lib/format'
-import { integrationMinutesForSession } from '../types/models'
+import { PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
+import { integrationMinutesForFrames } from '../types/models'
 
 export function Dashboard() {
   const projects = useLiveQuery(() => db.projects.toArray(), [])
   const sessions = useLiveQuery(() => db.sessions.toArray(), [])
+  const frames = useLiveQuery(() => db.frames.toArray(), [])
 
-  if (!projects || !sessions) return null
+  if (!projects || !sessions || !frames) return null
 
   const activeProjects = projects.filter(
-    (p) => p.status !== 'published' && p.status !== 'on-hold',
+    (p) => p.status !== 'complete',
   )
-  const totalMinutes = sessions.reduce(
-    (sum, s) => sum + integrationMinutesForSession(s),
-    0,
-  )
+  const totalMinutes = integrationMinutesForFrames(frames)
 
   const recentSessions = [...sessions]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -65,10 +64,13 @@ export function Dashboard() {
         <Link to={`/projects/${project.id}`} className="card-link" key={project.id}>
           <div className="card">
             <div className="card-title-row">
-              <h3>{project.title || project.target}</h3>
-              <StatusBadge status={project.status} />
+              <h3>{project.projectName || project.target}</h3>
+              <StatusBadge
+                label={PROJECT_STATUS_LABEL[project.status]}
+                dot={PROJECT_STATUS_DOT[project.status]}
+              />
             </div>
-            {project.goal && <div className="muted">{project.goal}</div>}
+            {project.location && <div className="muted">{project.location}</div>}
           </div>
         </Link>
       ))}
@@ -83,7 +85,7 @@ export function Dashboard() {
               const project = projects.find((p) => p.id === session.projectId)
               return (
                 <div className="list-item" key={session.id}>
-                  <span>{project?.title || project?.target || 'Unknown project'}</span>
+                  <span>{project?.projectName || project?.target || 'Unknown project'}</span>
                   <span className="muted">{session.date}</span>
                 </div>
               )

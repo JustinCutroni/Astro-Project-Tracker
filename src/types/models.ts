@@ -1,109 +1,115 @@
-// Core data model for the astrophotography project tracker.
-// IDs are strings (uuid) so records can be created offline and merged later.
+// Data model mirrors the existing AppSheet "Astrophotography" schema
+// (tables: projects, sessions, frames, cameras, telescopes, mounts, filters)
+// so a future sync layer can map onto it without another reshape.
 
-export type ProjectStatus =
-  | 'planning'
-  | 'collecting'
-  | 'transferring'
-  | 'processing'
-  | 'published'
-  | 'on-hold'
+export type ProjectStatus = 'planning' | 'imaging' | 'processing' | 'complete'
 
 export const PROJECT_STATUSES: ProjectStatus[] = [
   'planning',
-  'collecting',
-  'transferring',
+  'imaging',
   'processing',
-  'published',
-  'on-hold',
+  'complete',
 ]
+
+// Sessions and frames share the same pipeline states in the source app.
+export type PipelineStatus = 'captured' | 'transferred' | 'processing' | 'complete'
+
+export const PIPELINE_STATUSES: PipelineStatus[] = [
+  'captured',
+  'transferred',
+  'processing',
+  'complete',
+]
+
+export type FrameType = 'light' | 'dark' | 'flat' | 'flat-dark' | 'bias'
+
+export const FRAME_TYPES: FrameType[] = ['light', 'dark', 'flat', 'flat-dark', 'bias']
 
 export interface Project {
   id: string
+  projectName?: string // friendly name; defaults to target if blank
   target: string // e.g. "M31 - Andromeda Galaxy"
-  title?: string // optional friendly name, defaults to target
-  goal?: string // what you're trying to achieve (framing, SNR target, mosaic, narrowband palette, etc.)
+  location?: string // free text, e.g. "Remote Observatory - Utah"
   status: ProjectStatus
-  createdAt: string // ISO date
-  updatedAt: string
-  targetTotalIntegrationMinutes?: number // planning goal, optional
+  goalHours?: string // free text, e.g. "20+" (matches source app's text field)
+  storageRoot?: string // where this project's files live, e.g. "D:\Astro\M31"
   notes?: string
-  publishedUrl?: string // link to where it was published (Astrobin, Flickr, etc.)
+  cameraId?: string
+  telescopeId?: string
+  mountId?: string
+  filterIds: string[] // filters planned for this project
+  createdAt: string
+  updatedAt: string
 }
 
-export interface Equipment {
+export interface Session {
   id: string
-  name: string // e.g. "8in RC Telescope", "ZWO ASI2600MM Pro"
-  type: 'telescope' | 'camera' | 'mount' | 'filter-wheel' | 'other'
+  projectId: string
+  date: string // ISO date - the night of the session
+  location?: string // free text
+  status: PipelineStatus
+  filePath?: string // where this session's raw files currently live
   notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// One batch of subs of a single type/filter/settings combo within a session.
+export interface Frame {
+  id: string
+  sessionId: string
+  projectId: string
+  frameType: FrameType
+  filterId?: string // not set for bias/some calibration frames
+  count: number
+  exposureSeconds: number
+  gain?: number
+  offset?: string
+  tempF?: number
+  binning?: string // e.g. "1x1"
+  status: PipelineStatus
+  filePathPattern?: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Camera {
+  id: string
+  description: string // e.g. "ZWO ASI2600MM Pro"
+  cameraType?: string // free text for now (source app's Enum options aren't captured yet)
+  dateAdded: string
+}
+
+export interface Telescope {
+  id: string
+  description: string // e.g. "8in RC Telescope"
+  focalLength?: string
+  dateAdded: string
+}
+
+export interface Mount {
+  id: string
+  description: string
+  dateAdded: string
 }
 
 export interface FilterDef {
   id: string
-  name: string // e.g. "Luminance", "Ha", "OIII", "SII", "Red"
-  bandwidthNm?: number
+  description: string // e.g. "Ha", "L-Extreme"
+  dateAdded: string
 }
 
-export interface Location {
-  id: string
-  name: string // e.g. "Home Backyard", "Remote Observatory - Utah"
-  isRemote: boolean
-  bortleClass?: number
-  notes?: string
+export function totalExposureSeconds(frame: Pick<Frame, 'count' | 'exposureSeconds'>): number {
+  return frame.count * frame.exposureSeconds
 }
 
-// One night (or continuous block) of data collection for a project.
-export interface Session {
-  id: string
-  projectId: string
-  date: string // ISO date (the night of the session)
-  locationId?: string
-  equipmentIds: string[] // telescope/camera/mount used
-  exposures: SessionExposure[] // per-filter sub-exposure summary
-  seeingNotes?: string
-  weatherNotes?: string
-  moonIllumination?: number // 0-100 %
-  notes?: string
-  createdAt: string
-  updatedAt: string
-}
-
-// Sub-exposure tally for one filter within a session.
-export interface SessionExposure {
-  filterId: string
-  subExposureSeconds: number // length of a single sub, e.g. 300
-  subCount: number // number of subs captured
-  gain?: number
-  binning?: string // e.g. "1x1"
-}
-
-export type FileStage =
-  | 'on-camera'
-  | 'at-observatory'
-  | 'transferred-home'
-  | 'backed-up'
-  | 'processing'
-  | 'archived'
-
-// Tracks a batch of data files through the collect -> transfer -> process -> backup pipeline.
-export interface DataBatch {
-  id: string
-  projectId: string
-  sessionId?: string
-  stage: FileStage
-  sizeGb?: number
-  fileCount?: number
-  location?: string // where the files currently live (drive name, path, cloud folder)
-  notes?: string
-  createdAt: string
-  updatedAt: string
-}
-
-export function integrationMinutesForSession(session: Session): number {
+// Only Light frames represent integration time on the target; calibration
+// frames (Dark/Flat/Flat Dark/Bias) don't count toward it.
+export function integrationMinutesForFrames(frames: Frame[]): number {
   return (
-    session.exposures.reduce(
-      (sum, e) => sum + e.subExposureSeconds * e.subCount,
-      0,
-    ) / 60
+    frames
+      .filter((f) => f.frameType === 'light')
+      .reduce((sum, f) => sum + totalExposureSeconds(f), 0) / 60
   )
 }

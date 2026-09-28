@@ -1,13 +1,7 @@
-import type { ProjectStatus } from '../types/models'
-import { STATUS_DOT, STATUS_LABEL } from '../lib/status'
-
-export function StatusBadge({ status }: { status: ProjectStatus }) {
+export function StatusBadge({ label, dot }: { label: string; dot: string }) {
   return (
-    <span
-      className="badge"
-      style={{ '--dot': STATUS_DOT[status] } as React.CSSProperties}
-    >
-      {STATUS_LABEL[status]}
+    <span className="badge" style={{ '--dot': dot } as React.CSSProperties}>
+      {label}
     </span>
   )
 }

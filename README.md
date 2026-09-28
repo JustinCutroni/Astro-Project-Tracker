@@ -19,17 +19,24 @@ built yet. See **Roadmap** below for the plan to add it cheaply.
 
 ## What's tracked today
 
-- **Projects** — a target (e.g. "M31 - Andromeda Galaxy"), a goal, and a
-  status: Planning → Collecting → Transferring → Processing → Published (or
-  On hold).
-- **Sessions** — one entry per night/outing: date, location, equipment used,
-  and per-filter sub-exposure tallies (sub length × count), plus seeing,
-  weather, and moon illumination notes.
-- **Equipment / Filters / Locations** — manage your own gear list, filter
-  set, and imaging sites (including whether a site is remote) under
-  Settings, so session logging is just picking from your own lists.
-- Automatic **integration-time totals**, overall and broken down by filter,
-  per project and on the dashboard.
+The data model mirrors an existing AppSheet app tracking the same projects,
+so the two can be reconciled or synced later without another reshape:
+
+- **Projects** — a target (e.g. "M31 - Andromeda Galaxy"), location, goal
+  hours, storage location, a single camera/telescope/mount, the filters
+  planned for it, and a status: Planning → Imaging → Processing → Complete.
+- **Sessions** — one entry per night/outing, under a project: date,
+  location, a file path (where that night's raw files live), notes, and its
+  own pipeline status: Captured → Transferred → Processing → Complete.
+- **Frames** — under a session, one record per batch of subs of the same
+  type/filter/settings: frame type (Light/Dark/Flat/Flat Dark/Bias), filter,
+  count, exposure length, gain, offset, temperature, binning, a file path,
+  and its own Captured → Transferred → Processing → Complete status.
+- **Cameras / Telescopes / Mounts / Filters** — manage your own gear and
+  filter list under Settings, so project setup is just picking from them.
+- Automatic **integration-time totals** (Light frames only — calibration
+  frames don't count), overall and broken down by filter, per project, per
+  session, and on the dashboard.
 
 ## Running it locally
 
@@ -55,21 +62,20 @@ launches full-screen and works offline.
 
 Rough order, biased toward what's cheapest to run:
 
-1. **Data pipeline tracking** — follow a night's files from
-   on-camera → at-observatory → transferred home → backed up → processed →
-   archived, including size/location, so nothing gets lost across the
-   collect/transfer/process/backup chain.
+1. **ASIAIR Autorun log import** — paste/upload the `Autorun_Log_*.txt` file
+   ASIAIR produces after a session and auto-draft the session's frame
+   batches from it (frame type, filter, exposure, count, temperature),
+   instead of typing each batch by hand. Runs entirely in the browser, so it
+   stays free and works offline; the file only exists after the session
+   ends, so this is a post-session import, not a live feed.
 2. **Cross-device sync, free tier first** — most likely the Google Sheets
    API (reusing the Google account already in use for the existing AppSheet
    version) as a lightweight, free sync layer, since it means data entered
    on the phone at the observatory shows up at the home computer without
    standing up a paid backend.
-3. **Telescope/session log scraping** — import equipment log files
-   (e.g. NINA/PHD2/ASIAIR logs) to auto-fill session data instead of typing
-   it by hand.
-4. **Planning tools** — target visibility windows, moon-phase-aware
+3. **Planning tools** — target visibility windows, moon-phase-aware
    scheduling, and a backlog of "up next" targets.
-5. **Publishing links** — richer tracking of where/when a finished image
+4. **Publishing links** — richer tracking of where/when a finished image
    was published (AstroBin, etc.).
 
 ## Tech stack

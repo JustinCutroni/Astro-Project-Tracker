@@ -1,19 +1,37 @@
-import type { ProjectStatus } from '../types/models'
+import type { FrameType, PipelineStatus, ProjectStatus } from '../types/models'
 
-export const STATUS_LABEL: Record<ProjectStatus, string> = {
+export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   planning: 'Planning',
-  collecting: 'Collecting',
-  transferring: 'Transferring',
+  imaging: 'Imaging',
   processing: 'Processing',
-  published: 'Published',
-  'on-hold': 'On hold',
+  complete: 'Complete',
 }
 
-export const STATUS_DOT: Record<ProjectStatus, string> = {
+export const PROJECT_STATUS_DOT: Record<ProjectStatus, string> = {
   planning: 'var(--status-planning)',
-  collecting: 'var(--status-collecting)',
-  transferring: 'var(--status-transferring)',
+  imaging: 'var(--status-collecting)',
   processing: 'var(--status-processing)',
-  published: 'var(--status-published)',
-  'on-hold': 'var(--status-onhold)',
+  complete: 'var(--status-published)',
+}
+
+export const PIPELINE_STATUS_LABEL: Record<PipelineStatus, string> = {
+  captured: 'Captured',
+  transferred: 'Transferred',
+  processing: 'Processing',
+  complete: 'Complete',
+}
+
+export const PIPELINE_STATUS_DOT: Record<PipelineStatus, string> = {
+  captured: 'var(--status-collecting)',
+  transferred: 'var(--status-transferring)',
+  processing: 'var(--status-processing)',
+  complete: 'var(--status-published)',
+}
+
+export const FRAME_TYPE_LABEL: Record<FrameType, string> = {
+  light: 'Light',
+  dark: 'Dark',
+  flat: 'Flat',
+  'flat-dark': 'Flat Dark',
+  bias: 'Bias',
 }
