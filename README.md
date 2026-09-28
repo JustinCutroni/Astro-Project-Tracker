@@ -30,7 +30,7 @@ so the two can be reconciled or synced later without another reshape:
   planned for it, and a status: Planning → Imaging → Processing → Complete.
 - **Sessions** — one entry per night/outing, under a project: date,
   location, a file path (where that night's raw files live), notes, and its
-  own pipeline status: Captured → Transferred → Processing → Complete.
+  own status: Planning → Captured → Transferred → Processing → Complete.
 - **Frames** — under a session, one record per batch of subs of the same
   type/filter/settings: frame type (Light/Dark/Flat/Flat Dark/Bias), filter,
   count, exposure length, gain, offset, temperature, binning, a file path,
@@ -102,17 +102,25 @@ launches full-screen and works offline.
 
 ## ASIAIR Autorun log import
 
-From a project page, **Import log** lets you paste or upload the
-`Autorun_Log_*.txt` file ASIAIR writes during a session, and drafts that
-session's frame batches from it automatically: frame type, exposure length,
+**Import log** - from a project page (drafts a new session) or from an
+existing session's page (adds frame batches to it) - lets you paste or
+upload the `Autorun_Log_*.txt` file ASIAIR writes during a session, and
+drafts frame batches from it automatically: frame type, exposure length,
 binning, an approximate temperature, and - critically - the *actual* number
 of subs completed, recovered by counting per-image log lines rather than
 trusting the planned count (so an interrupted run shows 7 of 130, not 130).
-Runs entirely client-side, so it stays free and works offline.
+A run that was paused and resumed (or interrupted by a brief ASIAIR
+disconnect) at the same target/exposure/binning is merged back into one
+batch instead of being reported as two partial ones. Runs entirely
+client-side, so it stays free and works offline.
 
 It can't recover which filter was mounted, or gain/offset - ASIAIR doesn't
 write those to this log - so those stay editable blanks for you to fill in
-during review, before anything is saved.
+during review, before anything is saved. Pasting a single sample `.fit`
+filename from that batch's folder into the "Sample filename" field fills
+those gaps automatically, since ASIAIR encodes the filter, gain, and
+temperature into the filename itself (e.g.
+`Light_NGC 7000_180.0s_Bin1_2600MM_H_gain100_20260821-232712_252deg_-0.6F_0001.fit`).
 
 ## Target autocomplete
 

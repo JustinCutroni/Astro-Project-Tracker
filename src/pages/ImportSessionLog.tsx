@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, useCollection, useDocument, putDoc } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
 import { parseAsiairAutorunLog, type ParsedAsiairLog } from '../lib/asiairLogParser'
+import { matchFilterCode, parseAsiairFilename } from '../lib/asiairFilenameParser'
 import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus, type Project, type Session } from '../types/models'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
@@ -21,6 +22,7 @@ interface BatchDraft {
   status: PipelineStatus
   plannedCount: number
   associatedTarget?: string
+  sampleFilename: string
 }
 
 function draftsFromParsed(parsed: ParsedAsiairLog): BatchDraft[] {
@@ -37,15 +39,18 @@ function draftsFromParsed(parsed: ParsedAsiairLog): BatchDraft[] {
     status: 'captured',
     plannedCount: b.plannedCount,
     associatedTarget: b.associatedTarget,
+    sampleFilename: '',
   }))
 }
 
 export function ImportSessionLog() {
-  const { projectId } = useParams()
+  const { projectId, sessionId } = useParams()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const isExistingSession = Boolean(sessionId)
   const project = useDocument<Project>('projects', projectId)
+  const existingSession = useDocument<Session>('sessions', sessionId)
   const filtersRaw = useCollection<FilterDef>('filters')
   const filters = filtersRaw && [...filtersRaw].sort((a, b) => a.description.localeCompare(b.description))
   const knownLocations = useKnownLocations()
@@ -57,8 +62,17 @@ export function ImportSessionLog() {
   const [location, setLocation] = useState('')
   const [filePath, setFilePath] = useState('')
   const [batchDrafts, setBatchDrafts] = useState<BatchDraft[]>([])
+  const [sessionFieldsLoaded, setSessionFieldsLoaded] = useState(false)
+
+  if (isExistingSession && existingSession && !sessionFieldsLoaded) {
+    setSessionDate(existingSession.date)
+    setLocation(existingSession.location || '')
+    setFilePath(existingSession.filePath || '')
+    setSessionFieldsLoaded(true)
+  }
 
   if (!projectId || !filters) return null
+  if (isExistingSession && !existingSession) return null
   const pid = projectId
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -84,19 +98,47 @@ export function ImportSessionLog() {
     setBatchDrafts((prev) => prev.filter((b) => b.key !== key))
   }
 
+  // The log has no idea which filter was mounted or what gain/offset was
+  // used - but a single sample filename from that batch's folder carries all
+  // of that (plus the camera's temperature at capture), so pasting one in
+  // fills the gaps the log itself can't.
+  function applySampleFilename(key: string, filename: string) {
+    if (!filename.trim() || !filters) return
+    const parsed = parseAsiairFilename(filename)
+    const patch: Partial<BatchDraft> = {}
+    if (parsed.filterCode) {
+      const filterId = matchFilterCode(parsed.filterCode, filters)
+      if (filterId) patch.filterId = filterId
+    }
+    if (parsed.gain !== undefined) patch.gain = String(parsed.gain)
+    if (parsed.tempF !== undefined) patch.tempF = String(parsed.tempF)
+    updateBatch(key, patch)
+  }
+
   async function handleSave() {
     if (!sessionDate || batchDrafts.length === 0) return
 
-    const session: Session = {
-      id: newId(),
-      projectId: pid,
-      date: sessionDate,
-      location: location.trim() || undefined,
-      status: 'captured',
-      filePath: filePath.trim() || undefined,
-      notes: fileName ? `Imported from ASIAIR log: ${fileName}` : 'Imported from ASIAIR log',
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
+    let session: Session
+    if (existingSession) {
+      session = {
+        ...existingSession,
+        date: sessionDate,
+        location: location.trim() || undefined,
+        filePath: filePath.trim() || existingSession.filePath,
+        updatedAt: nowIso(),
+      }
+    } else {
+      session = {
+        id: newId(),
+        projectId: pid,
+        date: sessionDate,
+        location: location.trim() || undefined,
+        status: 'captured',
+        filePath: filePath.trim() || undefined,
+        notes: fileName ? `Imported from ASIAIR log: ${fileName}` : 'Imported from ASIAIR log',
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      }
     }
     await putDoc<Session>('sessions', session)
 
@@ -121,19 +163,25 @@ export function ImportSessionLog() {
     navigate(`/projects/${projectId}/sessions/${session.id}`)
   }
 
+  const backTo = existingSession
+    ? `/projects/${projectId}/sessions/${existingSession.id}`
+    : `/projects/${projectId}`
+
   return (
     <div>
-      <Link to={`/projects/${projectId}`} className="back-link">
-        &lsaquo; {project?.projectName || project?.target || 'Project'}
+      <Link to={backTo} className="back-link">
+        &lsaquo; {existingSession ? 'Session' : project?.projectName || project?.target || 'Project'}
       </Link>
       <div className="page-header">
         <h2>Import ASIAIR log</h2>
       </div>
 
       <p className="muted">
-        Upload or paste an ASIAIR <code>Autorun_Log_*.txt</code> file to draft this session's
-        frame batches automatically. It can't recover which filter was mounted, or gain/offset -
-        those aren't in the log - so double-check those fields below before saving.
+        Upload or paste an ASIAIR <code>Autorun_Log_*.txt</code> file to draft
+        {existingSession ? ' frame batches to add to this session' : " this session's frame batches"}{' '}
+        automatically. The log can't recover which filter was mounted, or gain/offset - but a
+        sample <code>.fit</code> filename from that batch's folder can, since ASIAIR encodes
+        those in the filename itself - paste one into each batch below to fill in the gaps.
       </p>
 
       <div className="form-field">
@@ -175,7 +223,7 @@ export function ImportSessionLog() {
       {parsed && batchDrafts.length > 0 && (
         <>
           <div className="page-header" style={{ marginTop: '1.5rem' }}>
-            <h2>Session</h2>
+            <h2>{existingSession ? 'Session details' : 'Session'}</h2>
           </div>
           <div className="form-row">
             <div className="form-field">
@@ -234,6 +282,21 @@ export function ImportSessionLog() {
                   Completed {b.count} of {b.plannedCount} planned frames (run was interrupted).
                 </div>
               )}
+
+              <div className="form-field">
+                <label>Sample filename (optional)</label>
+                <input
+                  value={b.sampleFilename}
+                  onChange={(e) => updateBatch(b.key, { sampleFilename: e.target.value })}
+                  onBlur={(e) => applySampleFilename(b.key, e.target.value)}
+                  placeholder="e.g. Light_NGC 7000_180.0s_Bin1_2600MM_H_gain100_..._0001.fit"
+                  style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+                />
+                <div className="muted" style={{ marginTop: '0.25rem' }}>
+                  Paste one filename from this batch's folder to fill in filter, gain, and
+                  temperature below.
+                </div>
+              </div>
 
               <div className="form-row">
                 <div className="form-field">
@@ -321,7 +384,9 @@ export function ImportSessionLog() {
 
           <div className="form-actions">
             <button type="button" className="btn btn-primary btn-block" onClick={handleSave} disabled={!sessionDate}>
-              Save session &amp; {batchDrafts.length} frame batch{batchDrafts.length > 1 ? 'es' : ''}
+              {existingSession
+                ? `Add ${batchDrafts.length} frame batch${batchDrafts.length > 1 ? 'es' : ''} to session`
+                : `Save session & ${batchDrafts.length} frame batch${batchDrafts.length > 1 ? 'es' : ''}`}
             </button>
           </div>
         </>

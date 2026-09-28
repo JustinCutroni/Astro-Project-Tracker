@@ -2,7 +2,13 @@ import { Link, useParams } from 'react-router-dom'
 import { useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
-import { FRAME_TYPE_LABEL, PIPELINE_STATUS_DOT, PIPELINE_STATUS_LABEL } from '../lib/status'
+import {
+  FRAME_TYPE_LABEL,
+  PIPELINE_STATUS_DOT,
+  PIPELINE_STATUS_LABEL,
+  SESSION_STATUS_DOT,
+  SESSION_STATUS_LABEL,
+} from '../lib/status'
 import {
   integrationMinutesForFrames,
   totalExposureSeconds,
@@ -35,8 +41,8 @@ export function SessionDetail() {
           {session.location && <div className="muted">{session.location}</div>}
         </div>
         <StatusBadge
-          label={PIPELINE_STATUS_LABEL[session.status]}
-          dot={PIPELINE_STATUS_DOT[session.status]}
+          label={SESSION_STATUS_LABEL[session.status]}
+          dot={SESSION_STATUS_DOT[session.status]}
         />
       </div>
 
@@ -65,6 +71,9 @@ export function SessionDetail() {
       <div className="form-actions">
         <Link to={`/projects/${projectId}/sessions/${session.id}/edit`} className="btn">
           Edit session
+        </Link>
+        <Link to={`/projects/${projectId}/sessions/${session.id}/import`} className="btn">
+          Import log
         </Link>
       </div>
 
