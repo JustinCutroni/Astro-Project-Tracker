@@ -20,6 +20,7 @@ export type CollectionName =
   | 'telescopes'
   | 'mounts'
   | 'filters'
+  | 'locations'
 
 function requireUid(): string {
   const uid = auth.currentUser?.uid

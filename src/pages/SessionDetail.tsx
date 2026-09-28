@@ -1,5 +1,6 @@
-import { Link, useParams } from 'react-router-dom'
-import { useCollection, useDocument } from '../firebase/firestoreDb'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { bulkPut, putDoc, useCollection, useDocument } from '../firebase/firestoreDb'
+import { newId, nowIso } from '../lib/ids'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
 import {
@@ -18,8 +19,13 @@ import {
   type Session,
 } from '../types/models'
 
+function today(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export function SessionDetail() {
   const { projectId, sessionId } = useParams()
+  const navigate = useNavigate()
 
   const session = useDocument<Session>('sessions', sessionId)
   const frames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
@@ -27,8 +33,42 @@ export function SessionDetail() {
   const project = useDocument<Project>('projects', projectId)
 
   if (!session || !frames || !filters || !projectId) return null
+  const sessionFrames = frames
 
   const minutes = integrationMinutesForFrames(frames)
+
+  // Most nights on the same target reuse the same location, file path, and
+  // frame settings - only the light frame counts tend to change - so cloning
+  // a session's frames into a fresh one and letting the user tweak counts is
+  // far faster than re-entering everything by hand.
+  async function handleDuplicate() {
+    if (!session) return
+    const newSession: Session = {
+      id: newId(),
+      projectId: session.projectId,
+      date: today(),
+      location: session.location,
+      status: 'planning',
+      filePath: session.filePath,
+      notes: session.notes,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    }
+    await putDoc<Session>('sessions', newSession)
+
+    if (sessionFrames.length > 0) {
+      const clonedFrames: Frame[] = sessionFrames.map((f) => ({
+        ...f,
+        id: newId(),
+        sessionId: newSession.id,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      }))
+      await bulkPut<Frame>('frames', clonedFrames)
+    }
+
+    navigate(`/projects/${projectId}/sessions/${newSession.id}/edit`)
+  }
 
   return (
     <div>
@@ -75,6 +115,9 @@ export function SessionDetail() {
         <Link to={`/projects/${projectId}/sessions/${session.id}/import`} className="btn">
           Import log
         </Link>
+        <button type="button" className="btn" onClick={handleDuplicate}>
+          Duplicate session
+        </button>
       </div>
 
       <div className="page-header" style={{ marginTop: '1.5rem' }}>

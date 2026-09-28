@@ -35,8 +35,9 @@ so the two can be reconciled or synced later without another reshape:
   type/filter/settings: frame type (Light/Dark/Flat/Flat Dark/Bias), filter,
   count, exposure length, gain, offset, temperature, binning, a file path,
   and its own Captured → Transferred → Processing → Complete status.
-- **Cameras / Telescopes / Mounts / Filters** — manage your own gear and
-  filter list under Settings, so project setup is just picking from them.
+- **Cameras / Telescopes / Mounts / Filters / Locations** — manage your own
+  gear, filter list, and imaging locations under Settings, so project and
+  session setup is just picking from them.
 - Automatic **integration-time totals** (Light frames only — calibration
   frames don't count), overall and broken down by filter, per project, per
   session, and on the dashboard.
@@ -121,6 +122,21 @@ filename from that batch's folder into the "Sample filename" field fills
 those gaps automatically, since ASIAIR encodes the filter, gain, and
 temperature into the filename itself (e.g.
 `Light_NGC 7000_180.0s_Bin1_2600MM_H_gain100_20260821-232712_252deg_-0.6F_0001.fit`).
+
+## Duplicating sessions and frame batches
+
+Most nights on the same target reuse the same location, file path, and frame
+settings - only the light frame counts (and sometimes which filter) tend to
+change. Two shortcuts avoid re-entering everything by hand:
+
+- **Duplicate session** (on a session's page) clones that session - location,
+  file path, notes, and every frame batch - into a brand new session dated
+  today, so you only need to adjust the date and any counts that changed.
+- **Also create identical batches for...** (when adding or editing a frame
+  batch) copies everything about that batch - exposure, binning, gain,
+  temperature - into a new batch per filter you check, for mono imaging
+  through a filter set like S/Ha/OIII where only the filter (and maybe the
+  count) differs between batches.
 
 ## Target autocomplete
 

@@ -119,6 +119,12 @@ export interface FilterDef {
   dateAdded: string
 }
 
+export interface Location {
+  id: string
+  description: string // e.g. "Remote Observatory - Utah"
+  dateAdded: string
+}
+
 export function totalExposureSeconds(frame: Pick<Frame, 'count' | 'exposureSeconds'>): number {
   return frame.count * frame.exposureSeconds
 }
