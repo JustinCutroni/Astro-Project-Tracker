@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, nowIso } from '../db/db'
+import { IconClose } from '../components/icons'
 
 type Tab = 'cameras' | 'telescopes' | 'mounts' | 'filters'
 
@@ -71,7 +72,7 @@ function CamerasTab() {
               {c.description} {c.cameraType && <span className="muted">({c.cameraType})</span>}
             </span>
             <button className="icon-btn" onClick={() => remove(c.id)} aria-label="Remove">
-              &#x2715;
+              <IconClose />
             </button>
           </div>
         ))}
@@ -135,7 +136,7 @@ function TelescopesTab() {
               {t.description} {t.focalLength && <span className="muted">({t.focalLength}mm)</span>}
             </span>
             <button className="icon-btn" onClick={() => remove(t.id)} aria-label="Remove">
-              &#x2715;
+              <IconClose />
             </button>
           </div>
         ))}
@@ -190,7 +191,7 @@ function MountsTab() {
           <div className="list-item" key={m.id}>
             <span>{m.description}</span>
             <button className="icon-btn" onClick={() => remove(m.id)} aria-label="Remove">
-              &#x2715;
+              <IconClose />
             </button>
           </div>
         ))}
@@ -237,7 +238,7 @@ function FiltersTab() {
           <div className="list-item" key={f.id}>
             <span>{f.description}</span>
             <button className="icon-btn" onClick={() => remove(f.id)} aria-label="Remove">
-              &#x2715;
+              <IconClose />
             </button>
           </div>
         ))}

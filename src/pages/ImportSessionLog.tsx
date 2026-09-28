@@ -6,6 +6,7 @@ import { parseAsiairAutorunLog, type ParsedAsiairLog } from '../lib/asiairLogPar
 import { FRAME_TYPES, PIPELINE_STATUSES, type Frame, type FrameType, type PipelineStatus, type Session } from '../types/models'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
+import { IconClose } from '../components/icons'
 
 interface BatchDraft {
   key: string
@@ -223,7 +224,7 @@ export function ImportSessionLog() {
                   {b.associatedTarget ? ` · pointed at ${b.associatedTarget}` : ''}
                 </h3>
                 <button type="button" className="icon-btn" onClick={() => removeBatch(b.key)} aria-label="Remove">
-                  &#x2715;
+                  <IconClose />
                 </button>
               </div>
 

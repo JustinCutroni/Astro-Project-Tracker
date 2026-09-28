@@ -21,6 +21,25 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Night mode: monochrome red, for preserving night vision at the eyepiece. */
+:root[data-theme='night'] {
+  --bg: #000000;
+  --bg-elevated: #0d0000;
+  --bg-card: #130202;
+  --border: #3a0a0a;
+  --text: #ff5555;
+  --text-dim: #8a3333;
+  --accent: #ff2b2b;
+  --accent-dim: #4d0000;
+  --accent-contrast: #1a0000;
+  --status-planning: #7a3d3d;
+  --status-collecting: #b33939;
+  --status-transferring: #cc4c4c;
+  --status-processing: #e04040;
+  --status-published: #ff2b2b;
+  --status-onhold: #662626;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -76,6 +95,24 @@ button {
   font-size: 1.1rem;
   margin: 0;
   letter-spacing: 0.02em;
+}
+
+.night-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.night-toggle[aria-pressed='true'] {
+  background: var(--accent-dim);
+  color: var(--accent);
 }
 
 .app-main {
@@ -222,6 +259,47 @@ button {
   align-items: center;
   justify-content: center;
   z-index: 9;
+}
+
+.autocomplete-wrap {
+  position: relative;
+}
+
+.suggestion-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-height: 12rem;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.suggestion-list li {
+  list-style: none;
+}
+
+.suggestion-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.suggestion-list button:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .back-link {

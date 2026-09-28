@@ -44,12 +44,19 @@ export function nowIso(): string {
 
 // Seed the filter list used by the source AppSheet app so the frame form
 // isn't empty. Safe to call every startup - only inserts when empty.
+//
+// The check-then-insert is wrapped in a single readwrite transaction so two
+// overlapping calls (e.g. React StrictMode double-invoking effects in dev)
+// can't both see an empty table and double-seed it - IndexedDB serializes
+// readwrite transactions against the same store.
 export async function seedDefaultsIfEmpty(): Promise<void> {
-  const filterCount = await db.filters.count()
-  if (filterCount === 0) {
-    const defaults = ['L', 'R', 'G', 'B', 'S', 'Ha', 'OIII', 'L-Enhance', 'L-Extreme', 'Dark', 'None']
-    await db.filters.bulkAdd(
-      defaults.map((description) => ({ id: newId(), description, dateAdded: nowIso() })),
-    )
-  }
+  await db.transaction('rw', db.filters, async () => {
+    const filterCount = await db.filters.count()
+    if (filterCount === 0) {
+      const defaults = ['L', 'R', 'G', 'B', 'S', 'Ha', 'OIII', 'L-Enhance', 'L-Extreme', 'Dark', 'None']
+      await db.filters.bulkAdd(
+        defaults.map((description) => ({ id: newId(), description, dateAdded: nowIso() })),
+      )
+    }
+  })
 }

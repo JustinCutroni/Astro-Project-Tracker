@@ -72,6 +72,24 @@ It can't recover which filter was mounted, or gain/offset - ASIAIR doesn't
 write those to this log - so those stay editable blanks for you to fill in
 during review, before anything is saved.
 
+## Target autocomplete
+
+The project "target" field suggests matches as you type, from a small
+offline catalog (the full Messier catalog plus ~50 popular NGC/IC/Sharpless
+astrophotography targets) bundled with the app - not a live API call. That's
+deliberate: a public astronomy name-lookup API (like the one a similar
+open-source project uses) generally requires an API key, and a client-only
+app like this one has no backend to hide that key behind - embedding it in
+the browser bundle would expose it to anyone who opens dev tools. The
+catalog is just a starting point, not a constraint - the field stays plain
+free text for anything not listed.
+
+## Night mode
+
+The moon icon in the header switches to a monochrome red palette (black
+background, red-only text and status colors) for preserving night vision at
+the eyepiece, and remembers your choice on that device.
+
 ## Roadmap
 
 Rough order, biased toward what's cheapest to run:
@@ -81,9 +99,9 @@ Rough order, biased toward what's cheapest to run:
    version) as a lightweight, free sync layer, since it means data entered
    on the phone at the observatory shows up at the home computer without
    standing up a paid backend.
-3. **Planning tools** — target visibility windows, moon-phase-aware
+2. **Planning tools** — target visibility windows, moon-phase-aware
    scheduling, and a backlog of "up next" targets.
-4. **Publishing links** — richer tracking of where/when a finished image
+3. **Publishing links** — richer tracking of where/when a finished image
    was published (AstroBin, etc.).
 
 ## Tech stack
