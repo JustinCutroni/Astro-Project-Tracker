@@ -14,6 +14,7 @@ import {
 import { PROJECT_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { formatTarget, searchTargets } from '../lib/targetSearch'
+import { sortFilters } from '../lib/filters'
 
 function byDescription<T extends { description: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.description.localeCompare(b.description))
@@ -67,7 +68,7 @@ export function ProjectForm() {
   const cameras = byDescription(camerasRaw)
   const telescopes = byDescription(telescopesRaw)
   const mounts = byDescription(mountsRaw)
-  const filters = byDescription(filtersRaw)
+  const filters = sortFilters(filtersRaw)
 
   function toggleFilter(id: string) {
     setFilterIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]))

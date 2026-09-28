@@ -4,6 +4,7 @@ import { putDoc, removeDoc, useCollection, useDocument } from '../firebase/fires
 import { newId, nowIso } from '../lib/ids'
 import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus } from '../types/models'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
+import { sortFilters } from '../lib/filters'
 
 export function FrameForm() {
   const { projectId, sessionId, frameId } = useParams()
@@ -12,7 +13,7 @@ export function FrameForm() {
 
   const existing = useDocument<Frame>('frames', frameId)
   const filtersRaw = useCollection<FilterDef>('filters')
-  const filters = filtersRaw && [...filtersRaw].sort((a, b) => a.description.localeCompare(b.description))
+  const filters = filtersRaw && sortFilters(filtersRaw)
 
   const [frameType, setFrameType] = useState<FrameType>('light')
   const [filterId, setFilterId] = useState('')
