@@ -58,17 +58,25 @@ Install it on your phone from that URL: open it in the browser and choose
 "Add to Home Screen" (iOS Safari) or "Install app" (Android Chrome). It then
 launches full-screen and works offline.
 
+## ASIAIR Autorun log import
+
+From a project page, **Import log** lets you paste or upload the
+`Autorun_Log_*.txt` file ASIAIR writes during a session, and drafts that
+session's frame batches from it automatically: frame type, exposure length,
+binning, an approximate temperature, and - critically - the *actual* number
+of subs completed, recovered by counting per-image log lines rather than
+trusting the planned count (so an interrupted run shows 7 of 130, not 130).
+Runs entirely client-side, so it stays free and works offline.
+
+It can't recover which filter was mounted, or gain/offset - ASIAIR doesn't
+write those to this log - so those stay editable blanks for you to fill in
+during review, before anything is saved.
+
 ## Roadmap
 
 Rough order, biased toward what's cheapest to run:
 
-1. **ASIAIR Autorun log import** — paste/upload the `Autorun_Log_*.txt` file
-   ASIAIR produces after a session and auto-draft the session's frame
-   batches from it (frame type, filter, exposure, count, temperature),
-   instead of typing each batch by hand. Runs entirely in the browser, so it
-   stays free and works offline; the file only exists after the session
-   ends, so this is a post-session import, not a live feed.
-2. **Cross-device sync, free tier first** — most likely the Google Sheets
+1. **Cross-device sync, free tier first** — most likely the Google Sheets
    API (reusing the Google account already in use for the existing AppSheet
    version) as a lightweight, free sync layer, since it means data entered
    on the phone at the observatory shows up at the home computer without

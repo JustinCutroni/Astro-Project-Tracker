@@ -131,6 +131,9 @@ export function ProjectDetail() {
 
       <div className="page-header" style={{ marginTop: '1.5rem' }}>
         <h2>Sessions</h2>
+        <Link to={`/projects/${project.id}/sessions/import`} className="btn btn-sm">
+          Import log
+        </Link>
       </div>
 
       {sortedSessions.length === 0 && (
