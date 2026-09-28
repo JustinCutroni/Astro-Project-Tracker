@@ -7,6 +7,7 @@ import { matchFilterCode, parseAsiairFilename } from '../lib/asiairFilenameParse
 import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus, type Project, type Session } from '../types/models'
 import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
+import { sortFilters } from '../lib/filters'
 import { IconClose } from '../components/icons'
 
 interface BatchDraft {
@@ -52,7 +53,7 @@ export function ImportSessionLog() {
   const project = useDocument<Project>('projects', projectId)
   const existingSession = useDocument<Session>('sessions', sessionId)
   const filtersRaw = useCollection<FilterDef>('filters')
-  const filters = filtersRaw && [...filtersRaw].sort((a, b) => a.description.localeCompare(b.description))
+  const filters = filtersRaw && sortFilters(filtersRaw)
   const knownLocations = useKnownLocations()
 
   const [rawText, setRawText] = useState('')

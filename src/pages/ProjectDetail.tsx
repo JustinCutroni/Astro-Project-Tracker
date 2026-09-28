@@ -19,6 +19,7 @@ import {
   type Session,
   type Telescope,
 } from '../types/models'
+import { sortFilters } from '../lib/filters'
 
 export function ProjectDetail() {
   const { id } = useParams()
@@ -27,12 +28,13 @@ export function ProjectDetail() {
   const project = useDocument<Project>('projects', id)
   const sessions = useCollection<Session>('sessions', { field: 'projectId', value: id })
   const frames = useCollection<Frame>('frames', { field: 'projectId', value: id })
-  const filters = useCollection<FilterDef>('filters')
+  const filtersRaw = useCollection<FilterDef>('filters')
   const camera = useDocument<Camera>('cameras', project?.cameraId)
   const telescope = useDocument<Telescope>('telescopes', project?.telescopeId)
   const mount = useDocument<Mount>('mounts', project?.mountId)
 
-  if (!project || !sessions || !frames || !filters) return null
+  if (!project || !sessions || !frames || !filtersRaw) return null
+  const filters = sortFilters(filtersRaw)
 
   const sortedSessions = [...sessions].sort((a, b) => b.date.localeCompare(a.date))
   const totalMinutes = integrationMinutesForFrames(frames)
@@ -71,11 +73,11 @@ export function ProjectDetail() {
         />
       </div>
 
-      <div className="muted" style={{ marginBottom: '0.75rem' }}>
-        {[project.location, camera?.description, telescope?.description, mount?.description]
-          .filter(Boolean)
-          .join(' · ')}
-      </div>
+      {project.location && (
+        <div className="muted" style={{ marginBottom: '0.75rem' }}>
+          {project.location}
+        </div>
+      )}
 
       <div className="stat-grid">
         <div className="stat-box">
@@ -88,17 +90,48 @@ export function ProjectDetail() {
         </div>
       </div>
 
+      {(camera || telescope || mount) && (
+        <div className="card">
+          {camera && (
+            <div className="list-item">
+              <span>Camera</span>
+              <span className="muted">
+                {camera.description}
+                {camera.sensorWidthMm && camera.sensorHeightMm
+                  ? ` · ${camera.sensorWidthMm}×${camera.sensorHeightMm}mm`
+                  : ''}
+                {camera.pixelSizeUm ? ` · ${camera.pixelSizeUm}µm pixels` : ''}
+              </span>
+            </div>
+          )}
+          {telescope && (
+            <div className="list-item">
+              <span>Telescope</span>
+              <span className="muted">
+                {telescope.description}
+                {telescope.focalLength ? ` · ${telescope.focalLength}` : ''}
+              </span>
+            </div>
+          )}
+          {mount && (
+            <div className="list-item">
+              <span>Mount</span>
+              <span className="muted">{mount.description}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {minutesByFilter.size > 0 && (
         <div className="card">
-          {[...minutesByFilter.entries()].map(([filterId, minutes]) => {
-            const filter = filters.find((f) => f.id === filterId)
-            return (
-              <div className="list-item" key={filterId}>
-                <span>{filter?.description || 'Unknown filter'}</span>
-                <span className="muted">{formatMinutes(minutes)}</span>
+          {filters
+            .filter((f) => minutesByFilter.has(f.id))
+            .map((filter) => (
+              <div className="list-item" key={filter.id}>
+                <span>{filter.description}</span>
+                <span className="muted">{formatMinutes(minutesByFilter.get(filter.id)!)}</span>
               </div>
-            )
-          })}
+            ))}
         </div>
       )}
 
@@ -117,6 +150,11 @@ export function ProjectDetail() {
           {project.notes && <div className="muted">{project.notes}</div>}
         </div>
       )}
+
+      <div className="muted" style={{ marginBottom: '0.75rem' }}>
+        Created {formatDate(project.createdAt)}
+        {project.updatedAt !== project.createdAt ? ` · Updated ${formatDate(project.updatedAt)}` : ''}
+      </div>
 
       <div className="form-actions">
         <Link to={`/projects/${project.id}/edit`} className="btn">

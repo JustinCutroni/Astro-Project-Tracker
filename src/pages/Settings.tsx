@@ -5,9 +5,14 @@ import { IconClose } from '../components/icons'
 import { findCameraSpec, searchCameraCatalog, type CameraSpec } from '../data/cameraCatalog'
 import type { Camera, FilterDef, Mount, Telescope } from '../types/models'
 import { signOutUser, useAuthUser } from '../firebase/auth'
+import { sortFilters } from '../lib/filters'
 
 function byDescription<T extends { description: string }>(items: T[] | undefined): T[] | undefined {
   return items && [...items].sort((a, b) => a.description.localeCompare(b.description))
+}
+
+function sortedFilters(items: FilterDef[] | undefined): FilterDef[] | undefined {
+  return items && sortFilters(items)
 }
 
 type Tab = 'cameras' | 'telescopes' | 'mounts' | 'filters'
@@ -350,7 +355,7 @@ function MountsTab() {
 }
 
 function FiltersTab() {
-  const filters = byDescription(useCollection<FilterDef>('filters'))
+  const filters = sortedFilters(useCollection<FilterDef>('filters'))
   const [description, setDescription] = useState('')
 
   async function add(e: React.FormEvent) {
