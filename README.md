@@ -84,6 +84,12 @@ the browser bundle would expose it to anyone who opens dev tools. The
 catalog is just a starting point, not a constraint - the field stays plain
 free text for anything not listed.
 
+The camera description field in Settings works the same way: type or pick a
+known model (e.g. "ASI2600MM") and its sensor size, pixel size, and
+resolution fill in automatically from a small bundled catalog of common
+astrophotography cameras. Same reasoning - offline, free, and every field
+stays editable since the catalog won't have every camera.
+
 ## Night mode
 
 The moon icon in the header switches to a monochrome red palette (black

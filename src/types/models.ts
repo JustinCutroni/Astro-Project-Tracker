@@ -79,6 +79,14 @@ export interface Camera {
   description: string // e.g. "ZWO ASI2600MM Pro"
   cameraType?: string // free text for now (source app's Enum options aren't captured yet)
   dateAdded: string
+  // Auto-filled from the camera catalog when the description matches a known
+  // model, but always editable - the catalog is a starting point, not a lock.
+  sensorWidthMm?: number
+  sensorHeightMm?: number
+  pixelSizeUm?: number
+  resolutionWidthPx?: number
+  resolutionHeightPx?: number
+  sensorType?: 'Mono' | 'Color'
 }
 
 export interface Telescope {
