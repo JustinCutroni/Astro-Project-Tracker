@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
-import { daysSince, formatDate, formatMinutes, parseGoalHours } from '../lib/format'
+import { daysSince, formatDate, formatMinutes, parseGoalHours, today } from '../lib/format'
 import {
   PROJECT_STATUS_DOT,
   PROJECT_STATUS_LABEL,
@@ -38,7 +38,10 @@ export function ProjectDetail() {
 
   const sortedSessions = [...sessions].sort((a, b) => b.date.localeCompare(a.date))
   const totalMinutes = integrationMinutesForFrames(frames)
-  const lastSessionDate = sortedSessions[0]?.date
+  // Only past/today sessions count as a "capture" - a session scheduled
+  // for next week isn't one yet, and would otherwise show a negative
+  // "days since".
+  const lastCaptureDate = sortedSessions.find((s) => s.date <= today())?.date
   const goalHours = parseGoalHours(project.goalHours)
   const percentDone = goalHours
     ? Math.min(100, Math.round((totalMinutes / 60 / goalHours) * 100))
@@ -96,8 +99,8 @@ export function ProjectDetail() {
       </div>
 
       <div className="muted" style={{ marginBottom: percentDone !== undefined ? '0.3rem' : '0.75rem' }}>
-        {lastSessionDate
-          ? `${daysSince(lastSessionDate)} day${daysSince(lastSessionDate) === 1 ? '' : 's'} since last capture`
+        {lastCaptureDate
+          ? `${daysSince(lastCaptureDate)} day${daysSince(lastCaptureDate) === 1 ? '' : 's'} since last capture`
           : 'No sessions yet'}
         {percentDone !== undefined && ` · ${percentDone}% of light integration goal`}
       </div>

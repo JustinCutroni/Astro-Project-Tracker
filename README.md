@@ -45,10 +45,20 @@ so the two can be reconciled or synced later without another reshape:
   models, which then prefills new frame batches under that project.
 - Automatic **integration-time totals** (Light frames only — calibration
   frames don't count), overall and broken down by filter, per project, per
-  session, and on the dashboard - where each active project also shows days
-  since its last session and a progress bar toward its goal hours (again,
-  Light frames only), so you can see what's stalled and what's close to
-  done at a glance.
+  session, and on the dashboard and project page - where each active
+  project also shows days since its last capture and a progress bar toward
+  its goal hours (again, Light frames only), so you can see what's stalled
+  and what's close to done at a glance.
+
+## Tonight, at a glance
+
+The dashboard opens with a **Tonight** card: if a session is already dated
+for today, it links straight to it (or lists all of them, if more than one
+project is imaging tonight); if nothing's planned yet, it offers a quick
+project picker to start one. Below that, an **Upcoming sessions** list
+shows every session dated today or later across all projects, soonest
+first - so a night you already planned next week doesn't get lost in a
+single project's session list.
 
 ## Running it locally
 

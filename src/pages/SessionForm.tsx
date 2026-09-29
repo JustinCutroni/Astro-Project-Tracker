@@ -5,10 +5,7 @@ import { newId, nowIso } from '../lib/ids'
 import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Session } from '../types/models'
 import { CAPTURE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
+import { today } from '../lib/format'
 
 export function SessionForm() {
   const { projectId, sessionId } = useParams()
