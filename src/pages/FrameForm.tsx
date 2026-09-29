@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, putDoc, removeDoc, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus, type Project } from '../types/models'
-import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
+import { FRAME_TYPES, CAPTURE_STATUSES, type Camera, type CaptureStatus, type FilterDef, type Frame, type FrameType, type Project, type Session } from '../types/models'
+import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
 
 export function FrameForm() {
@@ -12,7 +12,9 @@ export function FrameForm() {
   const isEdit = Boolean(frameId)
 
   const existing = useDocument<Frame>('frames', frameId)
+  const session = useDocument<Session>('sessions', sessionId)
   const project = useDocument<Project>('projects', projectId)
+  const camera = useDocument<Camera>('cameras', project?.cameraId)
   const filtersRaw = useCollection<FilterDef>('filters')
   const filters = filtersRaw && sortFilters(filtersRaw)
 
@@ -24,11 +26,16 @@ export function FrameForm() {
   const [offset, setOffset] = useState('')
   const [tempF, setTempF] = useState('')
   const [binning, setBinning] = useState('1x1')
-  const [status, setStatus] = useState<PipelineStatus>('captured')
+  const [status, setStatus] = useState<CaptureStatus>('captured')
   const [filePathPattern, setFilePathPattern] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [duplicateToFilterIds, setDuplicateToFilterIds] = useState<string[]>([])
+  const [statusDefaulted, setStatusDefaulted] = useState(false)
+  const [gainDefaulted, setGainDefaulted] = useState(false)
+  const [createFlat, setCreateFlat] = useState(false)
+  const [flatCount, setFlatCount] = useState(20)
+  const [flatExposureSeconds, setFlatExposureSeconds] = useState('')
 
   if (isEdit && existing && !loaded) {
     setFrameType(existing.frameType)
@@ -43,6 +50,20 @@ export function FrameForm() {
     setFilePathPattern(existing.filePathPattern || '')
     setNotes(existing.notes || '')
     setLoaded(true)
+  }
+
+  // A new frame batch under a session that's still just planned hasn't been
+  // shot yet either, so it should start out planned too, not "captured".
+  if (!isEdit && session && !statusDefaulted) {
+    setStatus(session.status === 'planning' ? 'planning' : 'captured')
+    setStatusDefaulted(true)
+  }
+
+  // Prefill gain from the camera's published optimal/unity gain, once the
+  // camera has actually loaded - still fully editable.
+  if (!isEdit && camera?.defaultGain !== undefined && !gain && !gainDefaulted) {
+    setGain(String(camera.defaultGain))
+    setGainDefaulted(true)
   }
 
   if (isEdit && !existing) return null
@@ -99,6 +120,22 @@ export function FrameForm() {
         createdAt: nowIso(),
       }))
       await bulkPut<Frame>('frames', duplicates)
+    }
+
+    // Flats need their own exposure (usually much shorter, often
+    // auto-determined) and their own count, but otherwise calibrate this
+    // exact light batch, so they're taken through the same filter and at
+    // the same temperature.
+    if (createFlat && flatExposureSeconds) {
+      const flatFrame: Frame = {
+        ...base,
+        id: newId(),
+        frameType: 'flat',
+        count: flatCount,
+        exposureSeconds: Number(flatExposureSeconds),
+        createdAt: nowIso(),
+      }
+      await putDoc<Frame>('frames', flatFrame)
     }
 
     navigate(`/projects/${projectId}/sessions/${sessionId}`)
@@ -203,11 +240,11 @@ export function FrameForm() {
             <select
               id="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as PipelineStatus)}
+              onChange={(e) => setStatus(e.target.value as CaptureStatus)}
             >
-              {PIPELINE_STATUSES.map((s) => (
+              {CAPTURE_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {PIPELINE_STATUS_LABEL[s]}
+                  {CAPTURE_STATUS_LABEL[s]}
                 </option>
               ))}
             </select>
@@ -232,6 +269,49 @@ export function FrameForm() {
           <label htmlFor="notes">Notes</label>
           <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
+
+        {frameType === 'light' && (
+          <div className="form-field">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={createFlat}
+                onChange={(e) => setCreateFlat(e.target.checked)}
+              />
+              Also create a matching flat frame batch
+            </label>
+            {createFlat && (
+              <div className="form-row" style={{ marginTop: '0.5rem' }}>
+                <div className="form-field">
+                  <label htmlFor="flatCount"># Flat frames</label>
+                  <input
+                    id="flatCount"
+                    type="number"
+                    min={0}
+                    value={flatCount}
+                    onChange={(e) => setFlatCount(Number(e.target.value))}
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="flatExposure">Flat exposure (sec)</label>
+                  <input
+                    id="flatExposure"
+                    type="number"
+                    min={0}
+                    step="0.001"
+                    value={flatExposureSeconds}
+                    onChange={(e) => setFlatExposureSeconds(e.target.value)}
+                    placeholder="e.g. 0.8"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="muted" style={{ marginTop: '0.25rem' }}>
+              Uses the same filter, binning, and temperature as this batch - flats just need
+              their own exposure (usually much shorter, often auto-exposure) and count.
+            </div>
+          </div>
+        )}
 
         {duplicateCandidates.length > 0 && (
           <div className="form-field">

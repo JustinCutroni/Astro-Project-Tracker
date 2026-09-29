@@ -360,11 +360,13 @@ button {
 
 .form-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
 }
 
 .form-row > .form-field {
-  flex: 1;
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 input,

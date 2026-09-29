@@ -11,20 +11,12 @@ export const PROJECT_STATUSES: ProjectStatus[] = [
   'complete',
 ]
 
-// Frames start once something has actually been shot.
-export type PipelineStatus = 'captured' | 'transferred' | 'processing' | 'complete'
+// Shared by sessions and frames: both can be planned before anything is
+// actually shot, and a frame batch under a planned session starts out
+// planned too rather than jumping straight to "captured".
+export type CaptureStatus = 'planning' | 'captured' | 'transferred' | 'processing' | 'complete'
 
-export const PIPELINE_STATUSES: PipelineStatus[] = [
-  'captured',
-  'transferred',
-  'processing',
-  'complete',
-]
-
-// Sessions can also be planned before any capturing happens.
-export type SessionStatus = 'planning' | PipelineStatus
-
-export const SESSION_STATUSES: SessionStatus[] = [
+export const CAPTURE_STATUSES: CaptureStatus[] = [
   'planning',
   'captured',
   'transferred',
@@ -58,7 +50,7 @@ export interface Session {
   projectId: string
   date: string // ISO date - the night of the session
   location?: string // free text
-  status: SessionStatus
+  status: CaptureStatus
   filePath?: string // where this session's raw files currently live
   notes?: string
   createdAt: string
@@ -78,7 +70,7 @@ export interface Frame {
   offset?: string
   tempF?: number
   binning?: string // e.g. "1x1"
-  status: PipelineStatus
+  status: CaptureStatus
   filePathPattern?: string
   notes?: string
   createdAt: string
@@ -98,6 +90,7 @@ export interface Camera {
   resolutionWidthPx?: number
   resolutionHeightPx?: number
   sensorType?: 'Mono' | 'Color'
+  defaultGain?: number // the manufacturer's published "optimal"/unity gain
 }
 
 export interface Telescope {

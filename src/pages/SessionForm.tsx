@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { putDoc, removeDoc, removeWhere, useDocument } from '../firebase/firestoreDb'
+import { bulkPut, getWhere, putDoc, removeDoc, removeWhere, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { SESSION_STATUSES, type Frame, type Session, type SessionStatus } from '../types/models'
-import { SESSION_STATUS_LABEL } from '../lib/status'
+import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Session } from '../types/models'
+import { CAPTURE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 
 function today(): string {
@@ -20,7 +20,7 @@ export function SessionForm() {
 
   const [date, setDate] = useState(today())
   const [location, setLocation] = useState('')
-  const [status, setStatus] = useState<SessionStatus>('planning')
+  const [status, setStatus] = useState<CaptureStatus>('planning')
   const [filePath, setFilePath] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -52,6 +52,23 @@ export function SessionForm() {
 
     if (isEdit && existing) {
       await putDoc<Session>('sessions', { ...existing, ...base })
+
+      // Marking a session as planning means nothing in it has actually been
+      // shot yet, so its frame batches shouldn't claim a further-along
+      // status either - cascade down to keep them consistent. Other status
+      // changes don't cascade: a session moving on doesn't mean every frame
+      // batch in it has too.
+      if (status === 'planning') {
+        const sessionFrames = await getWhere<Frame>('frames', 'sessionId', existing.id)
+        const toUpdate = sessionFrames.filter((f) => f.status !== 'planning')
+        if (toUpdate.length > 0) {
+          await bulkPut<Frame>(
+            'frames',
+            toUpdate.map((f) => ({ ...f, status: 'planning', updatedAt: nowIso() })),
+          )
+        }
+      }
+
       navigate(`/projects/${projectId}/sessions/${existing.id}`)
     } else {
       const session: Session = { id: newId(), createdAt: nowIso(), ...base }
@@ -112,11 +129,11 @@ export function SessionForm() {
             <select
               id="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as SessionStatus)}
+              onChange={(e) => setStatus(e.target.value as CaptureStatus)}
             >
-              {SESSION_STATUSES.map((s) => (
+              {CAPTURE_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {SESSION_STATUS_LABEL[s]}
+                  {CAPTURE_STATUS_LABEL[s]}
                 </option>
               ))}
             </select>
