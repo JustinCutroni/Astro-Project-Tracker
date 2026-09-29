@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
-import { formatDate, formatMinutes } from '../lib/format'
+import { daysSince, formatDate, formatMinutes, parseGoalHours } from '../lib/format'
 import {
   PROJECT_STATUS_DOT,
   PROJECT_STATUS_LABEL,
@@ -38,6 +38,11 @@ export function ProjectDetail() {
 
   const sortedSessions = [...sessions].sort((a, b) => b.date.localeCompare(a.date))
   const totalMinutes = integrationMinutesForFrames(frames)
+  const lastSessionDate = sortedSessions[0]?.date
+  const goalHours = parseGoalHours(project.goalHours)
+  const percentDone = goalHours
+    ? Math.min(100, Math.round((totalMinutes / 60 / goalHours) * 100))
+    : undefined
 
   const minutesByFilter = new Map<string, number>()
   for (const frame of frames) {
@@ -89,6 +94,18 @@ export function ProjectDetail() {
           <div className="label">Total integration{project.goalHours ? ` / ${project.goalHours}h goal` : ''}</div>
         </div>
       </div>
+
+      <div className="muted" style={{ marginBottom: percentDone !== undefined ? '0.3rem' : '0.75rem' }}>
+        {lastSessionDate
+          ? `${daysSince(lastSessionDate)} day${daysSince(lastSessionDate) === 1 ? '' : 's'} since last capture`
+          : 'No sessions yet'}
+        {percentDone !== undefined && ` · ${percentDone}% of light integration goal`}
+      </div>
+      {percentDone !== undefined && (
+        <div className="progress-track" style={{ marginBottom: '0.75rem' }}>
+          <div className="progress-fill" style={{ width: `${percentDone}%` }} />
+        </div>
+      )}
 
       {(camera || telescope || mount) && (
         <div className="card">
