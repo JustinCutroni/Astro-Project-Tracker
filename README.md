@@ -45,7 +45,10 @@ so the two can be reconciled or synced later without another reshape:
   models, which then prefills new frame batches under that project.
 - Automatic **integration-time totals** (Light frames only — calibration
   frames don't count), overall and broken down by filter, per project, per
-  session, and on the dashboard.
+  session, and on the dashboard - where each active project also shows days
+  since its last session and a progress bar toward its goal hours (again,
+  Light frames only), so you can see what's stalled and what's close to
+  done at a glance.
 
 ## Running it locally
 
