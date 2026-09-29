@@ -125,14 +125,18 @@ export function FrameForm() {
     // Flats need their own exposure (usually much shorter, often
     // auto-determined) and their own count, but otherwise calibrate this
     // exact light batch, so they're taken through the same filter and at
-    // the same temperature.
-    if (createFlat && flatExposureSeconds) {
+    // the same temperature. Exposure is commonly left blank here - ASIAIR's
+    // "auto-exposure" flats don't have a fixed value until after capture,
+    // when it's readable from the actual frame's filename - so 0 stands in
+    // for "not yet known" rather than blocking the flat batch from being
+    // created at all.
+    if (createFlat) {
       const flatFrame: Frame = {
         ...base,
         id: newId(),
         frameType: 'flat',
         count: flatCount,
-        exposureSeconds: Number(flatExposureSeconds),
+        exposureSeconds: flatExposureSeconds ? Number(flatExposureSeconds) : 0,
         createdAt: nowIso(),
       }
       await putDoc<Frame>('frames', flatFrame)
@@ -301,14 +305,16 @@ export function FrameForm() {
                     step="0.001"
                     value={flatExposureSeconds}
                     onChange={(e) => setFlatExposureSeconds(e.target.value)}
-                    placeholder="e.g. 0.8"
+                    placeholder="leave blank if auto-exposure"
                   />
                 </div>
               </div>
             )}
             <div className="muted" style={{ marginTop: '0.25rem' }}>
               Uses the same filter, binning, and temperature as this batch - flats just need
-              their own exposure (usually much shorter, often auto-exposure) and count.
+              their own count and, usually, a much shorter exposure. Leave the exposure blank
+              for auto-exposure flats - fill in the real value later once you can read it off
+              the captured frames' filenames.
             </div>
           </div>
         )}
