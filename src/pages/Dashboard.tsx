@@ -1,14 +1,17 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCollection } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
-import { daysSince, formatMinutes, parseGoalHours } from '../lib/format'
+import { daysSince, formatMinutes, parseGoalHours, relativeDayLabel, today } from '../lib/format'
 import { PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
 import { integrationMinutesForFrames, type Frame, type Project, type Session } from '../types/models'
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const projects = useCollection<Project>('projects')
   const sessions = useCollection<Session>('sessions')
   const frames = useCollection<Frame>('frames')
+  const [planProjectId, setPlanProjectId] = useState('')
 
   if (!projects || !sessions || !frames) return null
 
@@ -16,13 +19,100 @@ export function Dashboard() {
     (p) => p.status !== 'complete',
   )
   const totalMinutes = integrationMinutesForFrames(frames)
+  const todayDate = today()
+
+  const tonightSessions = sessions.filter((s) => s.date === todayDate)
+  const upcomingSessions = [...sessions]
+    .filter((s) => s.date >= todayDate)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 5)
 
   const recentSessions = [...sessions]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5)
 
+  function handlePlanTonight() {
+    if (planProjectId) navigate(`/projects/${planProjectId}/sessions/new`)
+  }
+
   return (
     <div>
+      {tonightSessions.length === 1 && (
+        <Link
+          to={`/projects/${tonightSessions[0].projectId}/sessions/${tonightSessions[0].id}`}
+          className="card-link"
+        >
+          <div className="card" style={{ borderColor: 'var(--accent)' }}>
+            <div className="card-title-row">
+              <h3>Tonight</h3>
+            </div>
+            <div className="muted">
+              {projects.find((p) => p.id === tonightSessions[0].projectId)?.projectName ||
+                projects.find((p) => p.id === tonightSessions[0].projectId)?.target ||
+                'Unknown project'}
+              {tonightSessions[0].location ? ` · ${tonightSessions[0].location}` : ''}
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {tonightSessions.length > 1 && (
+        <div className="card" style={{ borderColor: 'var(--accent)' }}>
+          <div className="card-title-row">
+            <h3>Tonight</h3>
+          </div>
+          {tonightSessions.map((session) => {
+            const project = projects.find((p) => p.id === session.projectId)
+            return (
+              <Link
+                to={`/projects/${session.projectId}/sessions/${session.id}`}
+                className="list-item"
+                key={session.id}
+              >
+                <span>{project?.projectName || project?.target || 'Unknown project'}</span>
+                <span className="muted">{session.location || ''}</span>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {tonightSessions.length === 0 && activeProjects.length > 0 && (
+        <div className="card">
+          <div className="card-title-row">
+            <h3>Tonight</h3>
+          </div>
+          <div className="muted" style={{ marginBottom: '0.6rem' }}>
+            No session planned yet.
+          </div>
+          <div className="form-row" style={{ alignItems: 'flex-end' }}>
+            <div className="form-field">
+              <label htmlFor="planProject">Project</label>
+              <select
+                id="planProject"
+                value={planProjectId}
+                onChange={(e) => setPlanProjectId(e.target.value)}
+              >
+                <option value="">Choose a project</option>
+                {activeProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.projectName || p.target}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!planProjectId}
+              onClick={handlePlanTonight}
+            >
+              Plan session
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="stat-grid">
         <div className="stat-box">
           <div className="value">{activeProjects.length}</div>
@@ -61,8 +151,12 @@ export function Dashboard() {
 
       {activeProjects.map((project) => {
         const projectSessions = sessions.filter((s) => s.projectId === project.id)
-        const lastSessionDate = projectSessions
+        // Only past/today sessions count as a "capture" - a session
+        // scheduled for next week isn't one yet, and would otherwise show
+        // up as a negative "days since".
+        const lastCaptureDate = projectSessions
           .map((s) => s.date)
+          .filter((d) => d <= todayDate)
           .sort()
           .at(-1)
         const projectFrames = frames.filter((f) => f.projectId === project.id)
@@ -85,8 +179,8 @@ export function Dashboard() {
               <div className="muted">
                 {project.location}
                 {project.location ? ' · ' : ''}
-                {lastSessionDate
-                  ? `${daysSince(lastSessionDate)} day${daysSince(lastSessionDate) === 1 ? '' : 's'} since last capture`
+                {lastCaptureDate
+                  ? `${daysSince(lastCaptureDate)} day${daysSince(lastCaptureDate) === 1 ? '' : 's'} since last capture`
                   : 'No sessions yet'}
               </div>
               <div className="muted" style={{ marginTop: '0.4rem' }}>
@@ -103,6 +197,29 @@ export function Dashboard() {
           </Link>
         )
       })}
+
+      {upcomingSessions.length > 0 && (
+        <>
+          <div className="page-header" style={{ marginTop: '1.5rem' }}>
+            <h2>Upcoming sessions</h2>
+          </div>
+          <div className="card">
+            {upcomingSessions.map((session) => {
+              const project = projects.find((p) => p.id === session.projectId)
+              return (
+                <Link
+                  to={`/projects/${session.projectId}/sessions/${session.id}`}
+                  className="list-item"
+                  key={session.id}
+                >
+                  <span>{project?.projectName || project?.target || 'Unknown project'}</span>
+                  <span className="muted">{relativeDayLabel(session.date)}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {recentSessions.length > 0 && (
         <>

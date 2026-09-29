@@ -35,3 +35,18 @@ export function parseGoalHours(goalHours: string | undefined): number | undefine
   const value = parseFloat(match[0])
   return Number.isFinite(value) && value > 0 ? value : undefined
 }
+
+// Today's date as the same bare "YYYY-MM-DD" shape session dates use.
+export function today(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+// A short, human label for a session date relative to today - "Tonight"
+// and "Tomorrow" read faster than a calendar date for the sessions someone
+// actually needs to act on soon; anything further out just shows the date.
+export function relativeDayLabel(dateIso: string): string {
+  const daysUntil = -daysSince(dateIso)
+  if (daysUntil === 0) return 'Tonight'
+  if (daysUntil === 1) return 'Tomorrow'
+  return formatDate(dateIso)
+}

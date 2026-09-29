@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, putDoc, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
 import { StatusBadge } from '../components/StatusBadge'
-import { formatDate, formatMinutes } from '../lib/format'
+import { formatDate, formatMinutes, today } from '../lib/format'
 import { CAPTURE_STATUS_DOT, CAPTURE_STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
 import {
@@ -18,10 +18,6 @@ import {
 } from '../types/models'
 
 type SortBy = 'type' | 'filter' | 'newest'
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 export function SessionDetail() {
   const { projectId, sessionId } = useParams()

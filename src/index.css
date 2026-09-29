@@ -445,6 +445,11 @@ textarea {
   border-bottom: none;
 }
 
+a.list-item {
+  text-decoration: none;
+  color: inherit;
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
