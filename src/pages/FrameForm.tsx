@@ -5,6 +5,8 @@ import { newId, nowIso } from '../lib/ids'
 import { FRAME_TYPES, CAPTURE_STATUSES, type Camera, type CaptureStatus, type FilterDef, type Frame, type FrameType, type Project, type Session } from '../types/models'
 import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
+import { extractFitsFrameInfo } from '../lib/fitsHeader'
+import { matchFilterCode } from '../lib/asiairFilenameParser'
 
 export function FrameForm() {
   const { projectId, sessionId, frameId } = useParams()
@@ -85,6 +87,31 @@ export function FrameForm() {
     setDuplicateToFilterIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]))
   }
 
+  // Reads real metadata straight out of a captured FITS file's header,
+  // rather than a filename convention - sidesteps ambiguities a filename
+  // can have (e.g. ASIAIR's own "<n>F" filename suffix is actually Celsius,
+  // confirmed against real captures) since FITS's CCD-TEMP keyword is
+  // unambiguously Celsius by convention. Only fills in what the header
+  // actually has; count is never touched, since a header describes one
+  // frame, not a batch.
+  async function handleFitsFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !filters) return
+    const buffer = await file.arrayBuffer()
+    const info = extractFitsFrameInfo(buffer)
+
+    if (info.frameType) setFrameType(info.frameType)
+    if (info.exposureSeconds !== undefined) setExposureSeconds(info.exposureSeconds)
+    if (info.binning) setBinning(info.binning)
+    if (info.gain !== undefined) setGain(String(info.gain))
+    if (info.tempF !== undefined) setTempF(info.tempF.toFixed(1))
+    if (info.filterName) {
+      const matchedId = matchFilterCode(info.filterName, filters)
+      if (matchedId) setFilterId(matchedId)
+    }
+    e.target.value = ''
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
@@ -161,6 +188,15 @@ export function FrameForm() {
         <h2>{isEdit ? 'Edit frames' : 'Add frames'}</h2>
       </div>
       <form onSubmit={handleSubmit}>
+        <div className="form-field">
+          <label htmlFor="fitsFile">Load from a sample FITS file (optional)</label>
+          <input id="fitsFile" type="file" accept=".fit,.fits" onChange={handleFitsFile} />
+          <div className="muted" style={{ marginTop: '0.25rem' }}>
+            Reads frame type, exposure, binning, gain, filter, and temperature straight out
+            of the file's own header - only the count below still needs entering by hand.
+          </div>
+        </div>
+
         <div className="form-row">
           <div className="form-field">
             <label htmlFor="frameType">Frame type</label>

@@ -141,6 +141,19 @@ those gaps automatically, since ASIAIR encodes the filter, gain, and
 temperature into the filename itself (e.g.
 `Light_NGC 7000_180.0s_Bin1_2600MM_H_gain100_20260821-232712_252deg_-0.6F_0001.fit`).
 
+## Loading a frame batch from a FITS file
+
+When adding or editing a frame batch, **"Load from a sample FITS file"**
+reads frame type, exposure, binning, gain, filter, and temperature straight
+out of an actual captured `.fit` file's own header - not just its filename.
+Runs entirely client-side (a FITS header is plain ASCII, parsed by hand, no
+imaging library needed) and is more reliable than filename parsing for
+temperature specifically: FITS's `CCD-TEMP` keyword is unambiguously
+Celsius by convention, where ASIAIR's own filename convention labels its
+temperature field "F" even though it's actually Celsius. Only the batch's
+count still needs entering by hand, since a header describes one frame, not
+a batch.
+
 ## Duplicating sessions and frame batches
 
 Most nights on the same target reuse the same location, file path, and frame
