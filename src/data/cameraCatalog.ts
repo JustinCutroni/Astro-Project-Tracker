@@ -17,6 +17,11 @@ export interface CameraSpec {
   pixelSizeUm: number
   resolutionWidthPx: number
   resolutionHeightPx: number
+  // The manufacturer's published "unity"/optimal gain, where read noise
+  // drops sharply without giving up much dynamic range. Only set where
+  // this is well-documented and consistent across sources - omitted rather
+  // than guessed for models where it isn't.
+  defaultGain?: number
 }
 
 export const CAMERA_CATALOG: CameraSpec[] = [
@@ -30,6 +35,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 3.76,
     resolutionWidthPx: 6248,
     resolutionHeightPx: 4176,
+    defaultGain: 100,
   },
   {
     match: ['asi2600mc', 'asi 2600mc', '2600mc'],
@@ -41,6 +47,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 3.76,
     resolutionWidthPx: 6248,
     resolutionHeightPx: 4176,
+    defaultGain: 100,
   },
   {
     match: ['asi294mm', 'asi 294mm', '294mm'],
@@ -52,6 +59,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 4.63,
     resolutionWidthPx: 4144,
     resolutionHeightPx: 2822,
+    defaultGain: 120,
   },
   {
     match: ['asi294mc', 'asi 294mc', '294mc'],
@@ -63,6 +71,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 4.63,
     resolutionWidthPx: 4144,
     resolutionHeightPx: 2822,
+    defaultGain: 120,
   },
   {
     match: ['asi533mm', 'asi 533mm', '533mm'],
@@ -74,6 +83,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 3.76,
     resolutionWidthPx: 3008,
     resolutionHeightPx: 3008,
+    defaultGain: 100,
   },
   {
     match: ['asi533mc', 'asi 533mc', '533mc'],
@@ -85,6 +95,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 3.76,
     resolutionWidthPx: 3008,
     resolutionHeightPx: 3008,
+    defaultGain: 100,
   },
   {
     match: ['asi1600mm', 'asi 1600mm', '1600mm'],
@@ -151,6 +162,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 3.76,
     resolutionWidthPx: 9576,
     resolutionHeightPx: 6388,
+    defaultGain: 100,
   },
   {
     match: ['asi6200mc', 'asi 6200mc', '6200mc'],
@@ -162,6 +174,7 @@ export const CAMERA_CATALOG: CameraSpec[] = [
     pixelSizeUm: 3.76,
     resolutionWidthPx: 9576,
     resolutionHeightPx: 6388,
+    defaultGain: 100,
   },
   {
     match: ['asi2400mc', 'asi 2400mc', '2400mc'],

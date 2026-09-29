@@ -4,8 +4,8 @@ import { bulkPut, useCollection, useDocument, putDoc } from '../firebase/firesto
 import { newId, nowIso } from '../lib/ids'
 import { parseAsiairAutorunLog, type ParsedAsiairLog } from '../lib/asiairLogParser'
 import { matchFilterCode, parseAsiairFilename } from '../lib/asiairFilenameParser'
-import { FRAME_TYPES, PIPELINE_STATUSES, type FilterDef, type Frame, type FrameType, type PipelineStatus, type Project, type Session } from '../types/models'
-import { FRAME_TYPE_LABEL, PIPELINE_STATUS_LABEL } from '../lib/status'
+import { FRAME_TYPES, CAPTURE_STATUSES, type FilterDef, type Frame, type FrameType, type CaptureStatus, type Project, type Session } from '../types/models'
+import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { sortFilters } from '../lib/filters'
 import { IconClose } from '../components/icons'
@@ -20,7 +20,7 @@ interface BatchDraft {
   offset: string
   tempF: string
   binning: string
-  status: PipelineStatus
+  status: CaptureStatus
   plannedCount: number
   associatedTarget?: string
   sampleFilename: string
@@ -371,11 +371,11 @@ export function ImportSessionLog() {
                 <label>Status</label>
                 <select
                   value={b.status}
-                  onChange={(e) => updateBatch(b.key, { status: e.target.value as PipelineStatus })}
+                  onChange={(e) => updateBatch(b.key, { status: e.target.value as CaptureStatus })}
                 >
-                  {PIPELINE_STATUSES.map((s) => (
+                  {CAPTURE_STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {PIPELINE_STATUS_LABEL[s]}
+                      {CAPTURE_STATUS_LABEL[s]}
                     </option>
                   ))}
                 </select>

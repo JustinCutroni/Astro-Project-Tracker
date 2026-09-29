@@ -34,10 +34,15 @@ so the two can be reconciled or synced later without another reshape:
 - **Frames** — under a session, one record per batch of subs of the same
   type/filter/settings: frame type (Light/Dark/Flat/Flat Dark/Bias), filter,
   count, exposure length, gain, offset, temperature, binning, a file path,
-  and its own Captured → Transferred → Processing → Complete status.
+  and its own Planning → Captured → Transferred → Processing → Complete
+  status (shared with sessions - a new batch under a still-planned session
+  starts out planned too). Deleting a project deletes all of its sessions
+  and frames with it.
 - **Cameras / Telescopes / Mounts / Filters / Locations** — manage your own
   gear, filter list, and imaging locations under Settings, so project and
-  session setup is just picking from them.
+  session setup is just picking from them. A camera can also carry its
+  manufacturer-published default/optimal gain, prefilled for known catalog
+  models, which then prefills new frame batches under that project.
 - Automatic **integration-time totals** (Light frames only — calibration
   frames don't count), overall and broken down by filter, per project, per
   session, and on the dashboard.
@@ -137,6 +142,19 @@ change. Two shortcuts avoid re-entering everything by hand:
   temperature - into a new batch per filter you check, for mono imaging
   through a filter set like S/Ha/OIII where only the filter (and maybe the
   count) differs between batches.
+- **Also create a matching flat frame batch** (when adding or editing a
+  Light frame batch) creates a Flat batch through the same filter and at
+  the same temperature, with its own count and exposure - flats are always
+  shot at a different (usually much shorter, often auto-exposure)
+  exposure than the lights they calibrate.
+
+## Sorting and filtering frames
+
+A session's frame batch list can get long fast (a light batch per filter,
+plus darks/flats/bias). The Type and Filter dropdowns above it narrow the
+list down, and Sort by reorders it by frame type, by filter (in the same
+S/Ha/OIII/L/R/G/B convention used everywhere else), or by most recently
+added.
 
 ## Target autocomplete
 

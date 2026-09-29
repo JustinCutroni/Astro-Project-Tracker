@@ -1,4 +1,4 @@
-import type { FrameType, PipelineStatus, ProjectStatus, SessionStatus } from '../types/models'
+import type { CaptureStatus, FrameType, ProjectStatus } from '../types/models'
 
 export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   planning: 'Planning',
@@ -14,28 +14,21 @@ export const PROJECT_STATUS_DOT: Record<ProjectStatus, string> = {
   complete: 'var(--status-published)',
 }
 
-export const PIPELINE_STATUS_LABEL: Record<PipelineStatus, string> = {
+// Shared between sessions and frames.
+export const CAPTURE_STATUS_LABEL: Record<CaptureStatus, string> = {
+  planning: 'Planning',
   captured: 'Captured',
   transferred: 'Transferred',
   processing: 'Processing',
   complete: 'Complete',
 }
 
-export const PIPELINE_STATUS_DOT: Record<PipelineStatus, string> = {
+export const CAPTURE_STATUS_DOT: Record<CaptureStatus, string> = {
+  planning: 'var(--status-planning)',
   captured: 'var(--status-collecting)',
   transferred: 'var(--status-transferring)',
   processing: 'var(--status-processing)',
   complete: 'var(--status-published)',
-}
-
-export const SESSION_STATUS_LABEL: Record<SessionStatus, string> = {
-  planning: 'Planning',
-  ...PIPELINE_STATUS_LABEL,
-}
-
-export const SESSION_STATUS_DOT: Record<SessionStatus, string> = {
-  planning: 'var(--status-planning)',
-  ...PIPELINE_STATUS_DOT,
 }
 
 export const FRAME_TYPE_LABEL: Record<FrameType, string> = {

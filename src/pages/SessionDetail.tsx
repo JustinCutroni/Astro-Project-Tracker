@@ -1,23 +1,23 @@
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, putDoc, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
+import { CAPTURE_STATUS_DOT, CAPTURE_STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
+import { sortFilters } from '../lib/filters'
 import {
-  FRAME_TYPE_LABEL,
-  PIPELINE_STATUS_DOT,
-  PIPELINE_STATUS_LABEL,
-  SESSION_STATUS_DOT,
-  SESSION_STATUS_LABEL,
-} from '../lib/status'
-import {
+  FRAME_TYPES,
   integrationMinutesForFrames,
   totalExposureSeconds,
   type FilterDef,
   type Frame,
+  type FrameType,
   type Project,
   type Session,
 } from '../types/models'
+
+type SortBy = 'type' | 'filter' | 'newest'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -29,13 +29,35 @@ export function SessionDetail() {
 
   const session = useDocument<Session>('sessions', sessionId)
   const frames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
-  const filters = useCollection<FilterDef>('filters')
+  const filtersRaw = useCollection<FilterDef>('filters')
   const project = useDocument<Project>('projects', projectId)
 
-  if (!session || !frames || !filters || !projectId) return null
+  const [typeFilter, setTypeFilter] = useState<FrameType | 'all'>('all')
+  const [filterIdFilter, setFilterIdFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<SortBy>('type')
+
+  if (!session || !frames || !filtersRaw || !projectId) return null
   const sessionFrames = frames
+  const filters = sortFilters(filtersRaw)
 
   const minutes = integrationMinutesForFrames(frames)
+
+  const filterOrder = new Map(filters.map((f, i) => [f.id, i]))
+  const filterRank = (f: Frame) => (f.filterId ? (filterOrder.get(f.filterId) ?? filters.length) : Infinity)
+  const typeRank = (f: Frame) => FRAME_TYPES.indexOf(f.frameType)
+
+  const visibleFrames = frames
+    .filter((f) => typeFilter === 'all' || f.frameType === typeFilter)
+    .filter((f) => {
+      if (filterIdFilter === 'all') return true
+      if (filterIdFilter === 'none') return !f.filterId
+      return f.filterId === filterIdFilter
+    })
+    .sort((a, b) => {
+      if (sortBy === 'newest') return b.createdAt.localeCompare(a.createdAt)
+      if (sortBy === 'filter') return filterRank(a) - filterRank(b) || typeRank(a) - typeRank(b)
+      return typeRank(a) - typeRank(b) || filterRank(a) - filterRank(b)
+    })
 
   // Most nights on the same target reuse the same location, file path, and
   // frame settings - only the light frame counts tend to change - so cloning
@@ -81,8 +103,8 @@ export function SessionDetail() {
           {session.location && <div className="muted">{session.location}</div>}
         </div>
         <StatusBadge
-          label={SESSION_STATUS_LABEL[session.status]}
-          dot={SESSION_STATUS_DOT[session.status]}
+          label={CAPTURE_STATUS_LABEL[session.status]}
+          dot={CAPTURE_STATUS_DOT[session.status]}
         />
       </div>
 
@@ -126,7 +148,55 @@ export function SessionDetail() {
 
       {frames.length === 0 && <div className="empty-state">No frames logged for this session yet.</div>}
 
-      {frames.map((frame) => {
+      {frames.length > 0 && (
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="frameTypeFilter">Type</label>
+            <select
+              id="frameTypeFilter"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as FrameType | 'all')}
+            >
+              <option value="all">All</option>
+              {FRAME_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {FRAME_TYPE_LABEL[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-field">
+            <label htmlFor="frameFilterFilter">Filter</label>
+            <select
+              id="frameFilterFilter"
+              value={filterIdFilter}
+              onChange={(e) => setFilterIdFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="none">None</option>
+              {filters.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.description}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-field">
+            <label htmlFor="frameSortBy">Sort by</label>
+            <select id="frameSortBy" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)}>
+              <option value="type">Frame type</option>
+              <option value="filter">Filter</option>
+              <option value="newest">Newest first</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {frames.length > 0 && visibleFrames.length === 0 && (
+        <div className="empty-state">No frames match this filter.</div>
+      )}
+
+      {visibleFrames.map((frame) => {
         const filter = filters.find((f) => f.id === frame.filterId)
         return (
           <Link
@@ -141,8 +211,8 @@ export function SessionDetail() {
                   {filter ? ` · ${filter.description}` : ''}
                 </h3>
                 <StatusBadge
-                  label={PIPELINE_STATUS_LABEL[frame.status]}
-                  dot={PIPELINE_STATUS_DOT[frame.status]}
+                  label={CAPTURE_STATUS_LABEL[frame.status]}
+                  dot={CAPTURE_STATUS_DOT[frame.status]}
                 />
               </div>
               <div className="muted">

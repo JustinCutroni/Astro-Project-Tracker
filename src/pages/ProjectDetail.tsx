@@ -5,8 +5,8 @@ import { formatDate, formatMinutes } from '../lib/format'
 import {
   PROJECT_STATUS_DOT,
   PROJECT_STATUS_LABEL,
-  SESSION_STATUS_DOT,
-  SESSION_STATUS_LABEL,
+  CAPTURE_STATUS_DOT,
+  CAPTURE_STATUS_LABEL,
 } from '../lib/status'
 import {
   integrationMinutesForFrames,
@@ -189,8 +189,8 @@ export function ProjectDetail() {
               <div className="card-title-row">
                 <h3>{formatDate(session.date)}</h3>
                 <StatusBadge
-                  label={SESSION_STATUS_LABEL[session.status]}
-                  dot={SESSION_STATUS_DOT[session.status]}
+                  label={CAPTURE_STATUS_LABEL[session.status]}
+                  dot={CAPTURE_STATUS_DOT[session.status]}
                 />
               </div>
               <div className="muted">

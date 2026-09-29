@@ -74,6 +74,7 @@ function CamerasTab() {
   const [pixelSizeUm, setPixelSizeUm] = useState('')
   const [resolutionWidthPx, setResolutionWidthPx] = useState('')
   const [resolutionHeightPx, setResolutionHeightPx] = useState('')
+  const [defaultGain, setDefaultGain] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const suggestions = showSuggestions ? searchCameraCatalog(description) : []
 
@@ -85,6 +86,7 @@ function CamerasTab() {
     setPixelSizeUm(String(spec.pixelSizeUm))
     setResolutionWidthPx(String(spec.resolutionWidthPx))
     setResolutionHeightPx(String(spec.resolutionHeightPx))
+    setDefaultGain(spec.defaultGain !== undefined ? String(spec.defaultGain) : '')
     setShowSuggestions(false)
   }
 
@@ -109,6 +111,7 @@ function CamerasTab() {
       pixelSizeUm: pixelSizeUm ? Number(pixelSizeUm) : undefined,
       resolutionWidthPx: resolutionWidthPx ? Number(resolutionWidthPx) : undefined,
       resolutionHeightPx: resolutionHeightPx ? Number(resolutionHeightPx) : undefined,
+      defaultGain: defaultGain ? Number(defaultGain) : undefined,
       dateAdded: nowIso(),
     })
     setDescription('')
@@ -118,6 +121,7 @@ function CamerasTab() {
     setPixelSizeUm('')
     setResolutionWidthPx('')
     setResolutionHeightPx('')
+    setDefaultGain('')
   }
 
   async function remove(id: string) {
@@ -134,11 +138,16 @@ function CamerasTab() {
           <div className="list-item" key={c.id}>
             <span>
               {c.description} {c.cameraType && <span className="muted">({c.cameraType})</span>}
-              {c.sensorWidthMm && c.pixelSizeUm && (
+              {(c.sensorWidthMm || c.defaultGain !== undefined) && (
                 <div className="muted" style={{ fontSize: '0.78rem' }}>
-                  {c.sensorWidthMm} &times; {c.sensorHeightMm}mm &middot; {c.pixelSizeUm}
-                  {'µ'}m pixels
-                  {c.resolutionWidthPx && ` · ${c.resolutionWidthPx}×${c.resolutionHeightPx}`}
+                  {c.sensorWidthMm && c.pixelSizeUm && (
+                    <>
+                      {c.sensorWidthMm} &times; {c.sensorHeightMm}mm &middot; {c.pixelSizeUm}
+                      {'µ'}m pixels
+                      {c.resolutionWidthPx && ` · ${c.resolutionWidthPx}×${c.resolutionHeightPx}`}
+                    </>
+                  )}
+                  {c.defaultGain !== undefined && ` · Default gain ${c.defaultGain}`}
                 </div>
               )}
             </span>
@@ -161,6 +170,7 @@ function CamerasTab() {
                 setPixelSizeUm('')
                 setResolutionWidthPx('')
                 setResolutionHeightPx('')
+                setDefaultGain('')
               }}
               onFocus={() => setShowSuggestions(true)}
               onBlur={handleDescriptionBlur}
@@ -185,6 +195,15 @@ function CamerasTab() {
               value={cameraType}
               onChange={(e) => setCameraType(e.target.value)}
               placeholder="e.g. Mono"
+            />
+          </div>
+          <div className="form-field" style={{ flex: '0 0 7rem' }}>
+            <label>Default gain</label>
+            <input
+              value={defaultGain}
+              onChange={(e) => setDefaultGain(e.target.value)}
+              type="number"
+              placeholder="e.g. 100"
             />
           </div>
         </div>
