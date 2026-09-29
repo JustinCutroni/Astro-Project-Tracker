@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useCollection } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
-import { formatMinutes } from '../lib/format'
+import { daysSince, formatMinutes, parseGoalHours } from '../lib/format'
 import { PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
 import { integrationMinutesForFrames, type Frame, type Project, type Session } from '../types/models'
 
@@ -59,20 +59,50 @@ export function Dashboard() {
         </div>
       )}
 
-      {activeProjects.map((project) => (
-        <Link to={`/projects/${project.id}`} className="card-link" key={project.id}>
-          <div className="card">
-            <div className="card-title-row">
-              <h3>{project.projectName || project.target}</h3>
-              <StatusBadge
-                label={PROJECT_STATUS_LABEL[project.status]}
-                dot={PROJECT_STATUS_DOT[project.status]}
-              />
+      {activeProjects.map((project) => {
+        const projectSessions = sessions.filter((s) => s.projectId === project.id)
+        const lastSessionDate = projectSessions
+          .map((s) => s.date)
+          .sort()
+          .at(-1)
+        const projectFrames = frames.filter((f) => f.projectId === project.id)
+        const capturedMinutes = integrationMinutesForFrames(projectFrames)
+        const goalHours = parseGoalHours(project.goalHours)
+        const percentDone = goalHours
+          ? Math.min(100, Math.round((capturedMinutes / 60 / goalHours) * 100))
+          : undefined
+
+        return (
+          <Link to={`/projects/${project.id}`} className="card-link" key={project.id}>
+            <div className="card">
+              <div className="card-title-row">
+                <h3>{project.projectName || project.target}</h3>
+                <StatusBadge
+                  label={PROJECT_STATUS_LABEL[project.status]}
+                  dot={PROJECT_STATUS_DOT[project.status]}
+                />
+              </div>
+              <div className="muted">
+                {project.location}
+                {project.location ? ' · ' : ''}
+                {lastSessionDate
+                  ? `${daysSince(lastSessionDate)} day${daysSince(lastSessionDate) === 1 ? '' : 's'} since last capture`
+                  : 'No sessions yet'}
+              </div>
+              <div className="muted" style={{ marginTop: '0.4rem' }}>
+                {formatMinutes(capturedMinutes)}
+                {goalHours ? ` / ${project.goalHours}h` : ''} light integration
+                {percentDone !== undefined ? ` · ${percentDone}%` : ''}
+              </div>
+              {percentDone !== undefined && (
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${percentDone}%` }} />
+                </div>
+              )}
             </div>
-            {project.location && <div className="muted">{project.location}</div>}
-          </div>
-        </Link>
-      ))}
+          </Link>
+        )
+      })}
 
       {recentSessions.length > 0 && (
         <>
