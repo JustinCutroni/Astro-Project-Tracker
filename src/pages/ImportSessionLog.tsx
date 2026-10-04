@@ -23,14 +23,15 @@ interface BatchDraft {
   status: CaptureStatus
   plannedCount: number
   associatedTarget?: string
+  notes: string[]
   sampleFilename: string
 }
 
-function draftsFromParsed(parsed: ParsedAsiairLog): BatchDraft[] {
+function draftsFromParsed(parsed: ParsedAsiairLog, filters: FilterDef[]): BatchDraft[] {
   return parsed.batches.map((b, i) => ({
     key: `${i}-${newId()}`,
     frameType: b.frameType,
-    filterId: '',
+    filterId: (b.filterCode && matchFilterCode(b.filterCode, filters)) || '',
     count: b.actualCount,
     exposureSeconds: b.exposureSeconds,
     gain: '',
@@ -40,6 +41,7 @@ function draftsFromParsed(parsed: ParsedAsiairLog): BatchDraft[] {
     status: 'captured',
     plannedCount: b.plannedCount,
     associatedTarget: b.associatedTarget,
+    notes: b.notes,
     sampleFilename: '',
   }))
 }
@@ -75,6 +77,7 @@ export function ImportSessionLog() {
   if (!projectId || !filters) return null
   if (isExistingSession && !existingSession) return null
   const pid = projectId
+  const filterList = filters
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -88,7 +91,7 @@ export function ImportSessionLog() {
     const result = parseAsiairAutorunLog(rawText)
     setParsed(result)
     setSessionDate(result.sessionDate || '')
-    setBatchDrafts(draftsFromParsed(result))
+    setBatchDrafts(draftsFromParsed(result, filterList))
   }
 
   function updateBatch(key: string, patch: Partial<BatchDraft>) {
@@ -278,11 +281,16 @@ export function ImportSessionLog() {
                 </button>
               </div>
 
-              {b.count !== b.plannedCount && (
+              {b.count < b.plannedCount && (
                 <div className="muted" style={{ marginBottom: '0.6rem' }}>
                   Completed {b.count} of {b.plannedCount} planned frames (run was interrupted).
                 </div>
               )}
+              {b.notes.map((note, i) => (
+                <div className="muted" style={{ marginBottom: '0.6rem' }} key={i}>
+                  {note}
+                </div>
+              ))}
 
               <div className="form-field">
                 <label>Sample filename (optional)</label>

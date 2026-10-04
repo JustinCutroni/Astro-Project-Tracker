@@ -126,19 +126,23 @@ existing session's page (adds frame batches to it) - lets you paste or
 upload the `Autorun_Log_*.txt` file ASIAIR writes during a session, and
 drafts frame batches from it automatically: frame type, exposure length,
 binning, an approximate temperature, and - critically - the *actual* number
-of subs completed, recovered by counting per-image log lines rather than
-trusting the planned count (so an interrupted run shows 7 of 130, not 130).
-A run that was paused and resumed (or interrupted by a brief ASIAIR
-disconnect) at the same target/exposure/binning is merged back into one
-batch instead of being reported as two partial ones. Runs entirely
+of subs completed, recovered from the per-image log lines rather than
+trusting the planned count. An exposure that was still running when the run
+was stopped isn't counted, runs that finished no frames at all are dropped,
+and a run that was stopped and restarted at the same target/exposure/
+binning/filter is merged back into one batch (with a note saying so).
+The filter is read from ASIAIR's "Filter change, S change to H" lines and
+matched to your filter list. Frames that were exposing while guiding lost
+its star are flagged (but still counted), and calibration sets shot twice
+at different exposures are flagged as a probable redo. Runs entirely
 client-side, so it stays free and works offline.
 
-It can't recover which filter was mounted, or gain/offset - ASIAIR doesn't
-write those to this log - so those stay editable blanks for you to fill in
-during review, before anything is saved. Pasting a single sample `.fit`
-filename from that batch's folder into the "Sample filename" field fills
-those gaps automatically, since ASIAIR encodes the filter, gain, and
-temperature into the filename itself (e.g.
+It can't recover gain/offset, or the filter of a batch with no filter-change
+line to go on - ASIAIR doesn't write those to this log - so those stay
+editable blanks for you to fill in during review, before anything is saved.
+Pasting a single sample `.fit` filename from that batch's folder into the
+"Sample filename" field fills those gaps automatically, since ASIAIR encodes
+the filter, gain, and temperature into the filename itself (e.g.
 `Light_NGC 7000_180.0s_Bin1_2600MM_H_gain100_20260821-232712_252deg_-0.6F_0001.fit`).
 
 ## Loading a frame batch from a FITS file
