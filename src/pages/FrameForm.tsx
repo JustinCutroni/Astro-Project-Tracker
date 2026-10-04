@@ -157,16 +157,20 @@ export function FrameForm() {
     // when it's readable from the actual frame's filename - so 0 stands in
     // for "not yet known" rather than blocking the flat batch from being
     // created at all.
+    // One flat batch per filter in this submission: the batch's own filter
+    // plus every filter it's being duplicated to.
     if (createFlat) {
-      const flatFrame: Frame = {
+      const flatFilterIds = [base.filterId, ...duplicateToFilterIds]
+      const flats: Frame[] = flatFilterIds.map((flatFilterId) => ({
         ...base,
         id: newId(),
+        filterId: flatFilterId,
         frameType: 'flat',
         count: flatCount,
         exposureSeconds: flatExposureSeconds ? Number(flatExposureSeconds) : 0,
         createdAt: nowIso(),
-      }
-      await putDoc<Frame>('frames', flatFrame)
+      }))
+      await bulkPut<Frame>('frames', flats)
     }
 
     navigate(`/projects/${projectId}/sessions/${sessionId}`)
@@ -347,7 +351,8 @@ export function FrameForm() {
               </div>
             )}
             <div className="muted" style={{ marginTop: '0.25rem' }}>
-              Uses the same filter, binning, and temperature as this batch - flats just need
+              One flat batch is created for this filter and for each filter selected below.
+              Uses the same binning and temperature as this batch - flats just need
               their own count and, usually, a much shorter exposure. Leave the exposure blank
               for auto-exposure flats - fill in the real value later once you can read it off
               the captured frames' filenames.
