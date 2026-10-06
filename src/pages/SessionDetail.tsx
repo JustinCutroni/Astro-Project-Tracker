@@ -5,6 +5,8 @@ import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
 import { CAPTURE_STATUS_DOT, CAPTURE_STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
+import { buildSessionGear, frameFilterName, optionLabel, selectable, useGearCatalog } from '../lib/gear'
+import { GearList } from '../components/GearList'
 import {
   FRAME_TYPES,
   integrationMinutesForFrames,
@@ -25,6 +27,7 @@ export function SessionDetail() {
   const frames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
   const filtersRaw = useCollection<FilterDef>('filters')
   const project = useDocument<Project>('projects', projectId)
+  const catalog = useGearCatalog()
 
   const [typeFilter, setTypeFilter] = useState<FrameType | 'all'>('all')
   const [filterIdFilter, setFilterIdFilter] = useState<string>('all')
@@ -32,6 +35,28 @@ export function SessionDetail() {
 
   if (!session || !frames || !filtersRaw || !projectId) return null
   const filters = sortFilters(filtersRaw)
+
+  // What was used that night, as recorded. A session not yet backfilled falls
+  // back to its project's current gear.
+  const gear =
+    session.gear ??
+    (project && catalog
+      ? buildSessionGear(
+          {
+            cameraId: project.cameraId ?? '',
+            telescopeId: project.telescopeId ?? '',
+            mountId: project.mountId ?? '',
+          },
+          catalog.cameras,
+          catalog.telescopes,
+          catalog.mounts,
+        )
+      : undefined)
+  const retiredIds = new Set(
+    [...(catalog?.cameras ?? []), ...(catalog?.telescopes ?? []), ...(catalog?.mounts ?? [])]
+      .filter((g) => g.retiredAt)
+      .map((g) => g.id),
+  )
 
   const minutes = integrationMinutesForFrames(frames)
 
@@ -78,6 +103,10 @@ export function SessionDetail() {
           <div className="label">Integration time</div>
         </div>
       </div>
+
+      {gear && (
+        <GearList camera={gear.camera} telescope={gear.telescope} mount={gear.mount} retiredIds={retiredIds} />
+      )}
 
       {(session.filePath || session.notes) && (
         <div className="card">
@@ -134,9 +163,9 @@ export function SessionDetail() {
             >
               <option value="all">All</option>
               <option value="none">None</option>
-              {filters.map((f) => (
+              {selectable(filters, frames.map((fr) => fr.filterId)).map((f) => (
                 <option key={f.id} value={f.id}>
-                  {f.description}
+                  {optionLabel(f)}
                 </option>
               ))}
             </select>
@@ -157,7 +186,7 @@ export function SessionDetail() {
       )}
 
       {visibleFrames.map((frame) => {
-        const filter = filters.find((f) => f.id === frame.filterId)
+        const filterName = frameFilterName(frame, filters)
         return (
           <Link
             to={`/projects/${projectId}/sessions/${session.id}/frames/${frame.id}`}
@@ -168,7 +197,7 @@ export function SessionDetail() {
               <div className="card-title-row">
                 <h3>
                   {FRAME_TYPE_LABEL[frame.frameType]}
-                  {filter ? ` · ${filter.description}` : ''}
+                  {filterName ? ` · ${filterName}` : ''}
                 </h3>
                 <StatusBadge
                   label={CAPTURE_STATUS_LABEL[frame.status]}

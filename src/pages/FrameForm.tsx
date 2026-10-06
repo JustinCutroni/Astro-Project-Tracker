@@ -7,6 +7,7 @@ import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
 import { extractFitsFrameInfo } from '../lib/fitsHeader'
 import { matchFilterCode } from '../lib/asiairFilenameParser'
+import { optionLabel, selectable } from '../lib/gear'
 
 export function FrameForm() {
   const { projectId, sessionId, frameId } = useParams()
@@ -77,11 +78,21 @@ export function FrameForm() {
   // own planned filters when set (the common case: mono imaging through a
   // known filter set like S/Ha/OIII), otherwise every filter on record -
   // always excluding whichever filter this batch itself already uses.
+  const activeFilters = filters.filter((f) => !f.retiredAt)
   const duplicateCandidates = (
     project && project.filterIds.length > 0
-      ? filters.filter((f) => project.filterIds.includes(f.id))
-      : filters
+      ? activeFilters.filter((f) => project.filterIds.includes(f.id))
+      : activeFilters
   ).filter((f) => f.id !== filterId)
+
+  // The filter name is stored on the batch itself so it still reads right if
+  // the catalog entry is later renamed or retired. Editing a batch without
+  // changing its filter keeps the name it was logged with.
+  function filterNameFor(id: string | undefined): string | undefined {
+    if (!id) return undefined
+    if (existing && existing.filterId === id && existing.filterName) return existing.filterName
+    return filters?.find((f) => f.id === id)?.description
+  }
 
   function toggleDuplicateFilter(id: string) {
     setDuplicateToFilterIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]))
@@ -106,7 +117,7 @@ export function FrameForm() {
     if (info.gain !== undefined) setGain(String(info.gain))
     if (info.tempF !== undefined) setTempF(info.tempF.toFixed(1))
     if (info.filterName) {
-      const matchedId = matchFilterCode(info.filterName, filters)
+      const matchedId = matchFilterCode(info.filterName, filters.filter((f) => !f.retiredAt))
       if (matchedId) setFilterId(matchedId)
     }
     e.target.value = ''
@@ -120,6 +131,7 @@ export function FrameForm() {
       sessionId: sessionId!,
       frameType,
       filterId: filterId || undefined,
+      filterName: filterNameFor(filterId || undefined),
       count,
       exposureSeconds,
       gain: gain ? Number(gain) : undefined,
@@ -144,6 +156,7 @@ export function FrameForm() {
         ...base,
         id: newId(),
         filterId: dupFilterId,
+        filterName: filterNameFor(dupFilterId),
         createdAt: nowIso(),
       }))
       await bulkPut<Frame>('frames', duplicates)
@@ -165,6 +178,7 @@ export function FrameForm() {
         ...base,
         id: newId(),
         filterId: flatFilterId,
+        filterName: filterNameFor(flatFilterId),
         frameType: 'flat',
         count: flatCount,
         exposureSeconds: flatExposureSeconds ? Number(flatExposureSeconds) : 0,
@@ -220,9 +234,9 @@ export function FrameForm() {
             <label htmlFor="filter">Filter</label>
             <select id="filter" value={filterId} onChange={(e) => setFilterId(e.target.value)}>
               <option value="">None</option>
-              {filters.map((f) => (
+              {selectable(filters, [filterId]).map((f) => (
                 <option key={f.id} value={f.id}>
-                  {f.description}
+                  {optionLabel(f)}
                 </option>
               ))}
             </select>
