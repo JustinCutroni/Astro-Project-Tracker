@@ -599,10 +599,12 @@ function FiltersTab() {
   const usage = useGearUsage()
   const [editing, setEditing] = useState<FilterDef | null>(null)
   const [description, setDescription] = useState('')
+  const [position, setPosition] = useState('')
 
   function reset() {
     setEditing(null)
     setDescription('')
+    setPosition('')
   }
 
   async function add(e: React.FormEvent) {
@@ -612,6 +614,7 @@ function FiltersTab() {
       ...editing,
       id: editing?.id ?? newId(),
       description: description.trim(),
+      position: position && Number(position) >= 1 ? Math.floor(Number(position)) : undefined,
       dateAdded: editing?.dateAdded ?? nowIso(),
     })
     reset()
@@ -629,8 +632,13 @@ function FiltersTab() {
         onEdit={(f) => {
           setEditing(f)
           setDescription(f.description)
+          setPosition(f.position !== undefined ? String(f.position) : '')
         }}
-        renderItem={(f) => f.description}
+        renderItem={(f) => (
+          <>
+            {f.description} {f.position !== undefined && <span className="muted">(position {f.position})</span>}
+          </>
+        )}
       />
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
         <div className="form-field">
@@ -639,6 +647,17 @@ function FiltersTab() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="e.g. Ha"
+          />
+        </div>
+        <div className="form-field" style={{ flex: '0 0 7rem' }}>
+          <label>Position</label>
+          <input
+            value={position}
+            onChange={(e) => setPosition(e.target.value)}
+            type="number"
+            min={1}
+            step={1}
+            placeholder="e.g. 1"
           />
         </div>
         <FormActions editing={!!editing} onCancel={reset} />
