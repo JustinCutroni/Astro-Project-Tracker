@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // GitHub Pages serves project sites from /<repo-name>/, so the production
 // build needs that base path. Dev server keeps using the root.
-const repoName = 'AstroProjectTracker'
+const repoName = 'Astro-Project-Tracker'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
