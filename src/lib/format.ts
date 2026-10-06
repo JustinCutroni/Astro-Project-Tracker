@@ -1,5 +1,15 @@
+// Bare "YYYY-MM-DD" strings are calendar dates, not instants: parse them as
+// local midnight so they display as the same day in every timezone (new Date
+// would read them as UTC and show the previous day west of Greenwich). Full
+// ISO timestamps (createdAt/updatedAt) are real instants and parse normally.
+function parseDate(iso: string): Date {
+  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (bare) return new Date(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]))
+  return new Date(iso)
+}
+
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return parseDate(iso).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -13,14 +23,12 @@ export function formatMinutes(totalMinutes: number): string {
   return `${hours}h ${minutes}m`
 }
 
-// Session dates are bare "YYYY-MM-DD" strings, which Date parses as UTC
-// midnight - comparing against a UTC-midnight version of "today" (rather
-// than the current instant) avoids the local clock's time-of-day nudging
-// the count by a day in either direction.
+// Whole calendar days between a session date and today, both taken in the
+// local timezone and compared at UTC midnight so DST can't skew the count.
 export function daysSince(dateIso: string): number {
-  const then = new Date(dateIso)
+  const then = parseDate(dateIso)
   const now = new Date()
-  const utcThen = Date.UTC(then.getUTCFullYear(), then.getUTCMonth(), then.getUTCDate())
+  const utcThen = Date.UTC(then.getFullYear(), then.getMonth(), then.getDate())
   const utcNow = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
   return Math.round((utcNow - utcThen) / 86400000)
 }
@@ -37,8 +45,13 @@ export function parseGoalHours(goalHours: string | undefined): number | undefine
 }
 
 // Today's date as the same bare "YYYY-MM-DD" shape session dates use.
+// Uses the local date, not toISOString (UTC), which flips to tomorrow in the
+// evening for anyone west of Greenwich.
 export function today(): string {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
 }
 
 // A short, human label for a session date relative to today - "Tonight"
