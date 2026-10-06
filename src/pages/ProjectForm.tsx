@@ -250,18 +250,28 @@ export function ProjectForm() {
         {filters.length > 0 && (
           <div className="form-field">
             <label>Filters planned for this project</label>
-            <div className="card">
-              {filters.map((f) => (
-                <label key={f.id} className="list-item" style={{ cursor: 'pointer' }}>
-                  <span>{optionLabel(f)}</span>
-                  <input
-                    type="checkbox"
-                    checked={filterIds.includes(f.id)}
-                    onChange={() => toggleFilter(f.id)}
-                  />
-                </label>
-              ))}
-            </div>
+            <details className="multi-select">
+              <summary>
+                {filterIds.length === 0
+                  ? 'None selected'
+                  : filters
+                      .filter((f) => filterIds.includes(f.id))
+                      .map((f) => f.description)
+                      .join(', ')}
+              </summary>
+              <div className="multi-select-menu">
+                {filters.map((f) => (
+                  <label key={f.id} className="list-item" style={{ cursor: 'pointer' }}>
+                    <span>{optionLabel(f)}</span>
+                    <input
+                      type="checkbox"
+                      checked={filterIds.includes(f.id)}
+                      onChange={() => toggleFilter(f.id)}
+                    />
+                  </label>
+                ))}
+              </div>
+            </details>
           </div>
         )}
 

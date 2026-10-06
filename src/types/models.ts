@@ -118,6 +118,7 @@ export interface Mount {
 export interface FilterDef {
   id: string
   description: string // e.g. "Ha", "L-Extreme"
+  position?: number // filter wheel slot, 1-based
   dateAdded: string
   retiredAt?: string
 }
