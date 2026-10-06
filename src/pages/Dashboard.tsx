@@ -27,7 +27,11 @@ export function Dashboard() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5)
 
+  // Sessions are dated by when the capture happens, so a session planned for
+  // next week isn't "recent" yet. Today stays in Upcoming, keeping the two
+  // lists from overlapping.
   const recentSessions = [...sessions]
+    .filter((s) => s.date < todayDate)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5)
 
