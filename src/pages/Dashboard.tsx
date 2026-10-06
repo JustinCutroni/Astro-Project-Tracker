@@ -177,8 +177,6 @@ export function Dashboard() {
                 />
               </div>
               <div className="muted">
-                {project.location}
-                {project.location ? ' · ' : ''}
                 {lastCaptureDate
                   ? `${daysSince(lastCaptureDate)} day${daysSince(lastCaptureDate) === 1 ? '' : 's'} since last capture`
                   : 'No sessions yet'}

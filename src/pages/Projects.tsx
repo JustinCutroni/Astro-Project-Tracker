@@ -30,7 +30,6 @@ export function Projects() {
                 dot={PROJECT_STATUS_DOT[project.status]}
               />
             </div>
-            {project.location && <div className="muted">{project.location}</div>}
           </div>
         </Link>
       ))}

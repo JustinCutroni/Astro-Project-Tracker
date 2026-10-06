@@ -25,8 +25,8 @@ a browser, **online or off**, and syncs across every device you sign into.
 The data model mirrors an existing AppSheet app tracking the same projects,
 so the two can be reconciled or synced later without another reshape:
 
-- **Projects** — a target (e.g. "M31 - Andromeda Galaxy"), location, goal
-  hours, storage location, and a status: Planning → Imaging → Processing →
+- **Projects** — a target (e.g. "M31 - Andromeda Galaxy"), goal
+  hours, and a status: Planning → Imaging → Processing →
   Complete. A project has no equipment of its own - that belongs to each
   session.
 - **Sessions** — one entry per night/outing, under a project: date,
@@ -40,8 +40,8 @@ so the two can be reconciled or synced later without another reshape:
   starts out planned too). Deleting a project deletes all of its sessions
   and frames with it.
 - **Cameras / Telescopes / Mounts / Filters / Locations** — manage your own
-  gear, filter list, and imaging locations under Settings, so project and
-  session setup is just picking from them. See **Gear and history** below for
+  gear, filter list, and imaging locations under Settings, so session
+  setup is just picking from them. See **Gear and history** below for
   what happens when you sell or replace something. A camera can also carry its
   manufacturer-published default/optimal gain, prefilled for known catalog
   models, which then prefills new frame batches under that project.

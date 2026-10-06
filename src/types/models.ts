@@ -32,10 +32,8 @@ export interface Project {
   id: string
   projectName?: string // friendly name; defaults to target if blank
   target: string // e.g. "M31 - Andromeda Galaxy"
-  location?: string // free text, e.g. "Remote Observatory - Utah"
   status: ProjectStatus
   goalHours?: string // free text, e.g. "20+" (matches source app's text field)
-  storageRoot?: string // where this project's files live, e.g. "D:\Astro\M31"
   notes?: string
   // Equipment lives on sessions, not here: a project can use a different rig
   // from one night to the next.

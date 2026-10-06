@@ -85,12 +85,6 @@ export function ProjectDetail() {
         />
       </div>
 
-      {project.location && (
-        <div className="muted" style={{ marginBottom: '0.75rem' }}>
-          {project.location}
-        </div>
-      )}
-
       <div className="stat-grid">
         <div className="stat-box">
           <div className="value">{sessions.length}</div>
@@ -125,14 +119,9 @@ export function ProjectDetail() {
         </div>
       )}
 
-      {(project.storageRoot || project.notes) && (
+      {project.notes && (
         <div className="card">
-          {project.storageRoot && (
-            <div className="muted" style={{ marginBottom: project.notes ? '0.5rem' : 0 }}>
-              Storage: {project.storageRoot}
-            </div>
-          )}
-          {project.notes && <div className="muted">{project.notes}</div>}
+          <div className="muted">{project.notes}</div>
         </div>
       )}
 
