@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
-import { CAPTURE_STATUS_DOT, CAPTURE_STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
+import { STATUS_DOT, STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
 import { frameFilterName, optionLabel, selectable, useGearCatalog } from '../lib/gear'
 import { GearList } from '../components/GearList'
@@ -73,8 +73,8 @@ export function SessionDetail() {
           {session.location && <div className="muted">{session.location}</div>}
         </div>
         <StatusBadge
-          label={CAPTURE_STATUS_LABEL[session.status]}
-          dot={CAPTURE_STATUS_DOT[session.status]}
+          label={STATUS_LABEL[session.status]}
+          dot={STATUS_DOT[session.status]}
         />
       </div>
 
@@ -191,8 +191,8 @@ export function SessionDetail() {
                   {filterName ? ` · ${filterName}` : ''}
                 </h3>
                 <StatusBadge
-                  label={CAPTURE_STATUS_LABEL[frame.status]}
-                  dot={CAPTURE_STATUS_DOT[frame.status]}
+                  label={STATUS_LABEL[frame.status]}
+                  dot={STATUS_DOT[frame.status]}
                 />
               </div>
               <div className="muted">

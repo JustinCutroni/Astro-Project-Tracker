@@ -4,8 +4,9 @@ import { bulkPut, useCollection, useDocument, putDoc } from '../firebase/firesto
 import { newId, nowIso } from '../lib/ids'
 import { parseAsiairAutorunLog, type ParsedAsiairLog } from '../lib/asiairLogParser'
 import { matchFilterCode, parseAsiairFilename } from '../lib/asiairFilenameParser'
-import { FRAME_TYPES, CAPTURE_STATUSES, type FilterDef, type Frame, type FrameType, type CaptureStatus, type Project, type Session } from '../types/models'
-import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
+import { FRAME_TYPES, STATUSES, type FilterDef, type Frame, type FrameType, type Status, type Project, type Session } from '../types/models'
+import { FRAME_TYPE_LABEL, STATUS_LABEL } from '../lib/status'
+import { rollUpProject, rollUpSession } from '../lib/statusSync'
 import { useKnownLocations } from '../lib/locations'
 import { sortFilters } from '../lib/filters'
 import { buildSessionGear, defaultGearIds, idsFromGear, optionLabel, selectable, sessionFilterOptions, useGearCatalog, type GearIds } from '../lib/gear'
@@ -22,12 +23,16 @@ interface BatchDraft {
   offset: string
   tempF: string
   binning: string
-  status: CaptureStatus
+  status: Status
   plannedCount: number
   associatedTarget?: string
   notes: string[]
   sampleFilename: string
 }
+
+// A log is imported after the night's over, so its batches are already shot and
+// ready to be moved off the rig.
+const IMPORTED_STATUS: Status = 'transferring'
 
 function draftsFromParsed(parsed: ParsedAsiairLog, filters: { id: string; description: string }[]): BatchDraft[] {
   return parsed.batches.map((b, i) => ({
@@ -40,7 +45,7 @@ function draftsFromParsed(parsed: ParsedAsiairLog, filters: { id: string; descri
     offset: '',
     tempF: b.tempF !== undefined ? String(b.tempF) : '',
     binning: b.binning,
-    status: 'captured',
+    status: IMPORTED_STATUS,
     plannedCount: b.plannedCount,
     associatedTarget: b.associatedTarget,
     notes: b.notes,
@@ -157,7 +162,7 @@ export function ImportSessionLog() {
         projectId: pid,
         date: sessionDate,
         location: location.trim() || undefined,
-        status: 'captured',
+        status: IMPORTED_STATUS,
         filePath: filePath.trim() || undefined,
         notes: fileName ? `Imported from ASIAIR log: ${fileName}` : 'Imported from ASIAIR log',
         gear: buildSessionGear(
@@ -188,6 +193,10 @@ export function ImportSessionLog() {
       updatedAt: nowIso(),
     }))
     await bulkPut<Frame>('frames', frames)
+
+    // The log's batches may be what moves the session (and project) on.
+    await rollUpSession(session.id, pid, { put: frames })
+    if (!existingSession) await rollUpProject(pid, { put: [session] })
 
     navigate(`/projects/${projectId}/sessions/${session.id}`)
   }
@@ -415,11 +424,11 @@ export function ImportSessionLog() {
                 <label>Status</label>
                 <select
                   value={b.status}
-                  onChange={(e) => updateBatch(b.key, { status: e.target.value as CaptureStatus })}
+                  onChange={(e) => updateBatch(b.key, { status: e.target.value as Status })}
                 >
-                  {CAPTURE_STATUSES.map((s) => (
+                  {STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {CAPTURE_STATUS_LABEL[s]}
+                      {STATUS_LABEL[s]}
                     </option>
                   ))}
                 </select>

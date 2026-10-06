@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useCollection } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { daysSince, formatMinutes, parseGoalHours, relativeDayLabel, today } from '../lib/format'
-import { PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
+import { STATUS_DOT, STATUS_LABEL } from '../lib/status'
 import { integrationMinutesForFrames, type Frame, type Project, type Session } from '../types/models'
 
 export function Dashboard() {
@@ -172,8 +172,8 @@ export function Dashboard() {
               <div className="card-title-row">
                 <h3>{project.projectName || project.target}</h3>
                 <StatusBadge
-                  label={PROJECT_STATUS_LABEL[project.status]}
-                  dot={PROJECT_STATUS_DOT[project.status]}
+                  label={STATUS_LABEL[project.status]}
+                  dot={STATUS_DOT[project.status]}
                 />
               </div>
               <div className="muted">

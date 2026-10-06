@@ -2,27 +2,12 @@
 // (tables: projects, sessions, frames, cameras, telescopes, mounts, filters)
 // so a future sync layer can map onto it without another reshape.
 
-export type ProjectStatus = 'planning' | 'imaging' | 'processing' | 'complete'
+// One status vocabulary for projects, sessions and frame batches, in pipeline
+// order. Status moves down (changing a session updates its frames) and up
+// (a parent advances once all of its children have) - see lib/statusSync.ts.
+export type Status = 'planning' | 'capturing' | 'transferring' | 'processing' | 'complete'
 
-export const PROJECT_STATUSES: ProjectStatus[] = [
-  'planning',
-  'imaging',
-  'processing',
-  'complete',
-]
-
-// Shared by sessions and frames: both can be planned before anything is
-// actually shot, and a frame batch under a planned session starts out
-// planned too rather than jumping straight to "captured".
-export type CaptureStatus = 'planning' | 'captured' | 'transferred' | 'processing' | 'complete'
-
-export const CAPTURE_STATUSES: CaptureStatus[] = [
-  'planning',
-  'captured',
-  'transferred',
-  'processing',
-  'complete',
-]
+export const STATUSES: Status[] = ['planning', 'capturing', 'transferring', 'processing', 'complete']
 
 export type FrameType = 'light' | 'dark' | 'flat' | 'flat-dark' | 'bias'
 
@@ -32,7 +17,7 @@ export interface Project {
   id: string
   projectName?: string // friendly name; defaults to target if blank
   target: string // e.g. "M31 - Andromeda Galaxy"
-  status: ProjectStatus
+  status: Status
   goalHours?: string // free text, e.g. "20+" (matches source app's text field)
   notes?: string
   // Equipment lives on sessions, not here: a project can use a different rig
@@ -46,7 +31,7 @@ export interface Session {
   projectId: string
   date: string // ISO date - the night of the session
   location?: string // free text
-  status: CaptureStatus
+  status: Status
   filePath?: string // where this session's raw files currently live
   notes?: string
   // The equipment (mount, scope, camera, filters) used or planned for that
@@ -72,7 +57,7 @@ export interface Frame {
   offset?: string
   tempF?: number
   binning?: string // e.g. "1x1"
-  status: CaptureStatus
+  status: Status
   filePathPattern?: string
   notes?: string
   createdAt: string

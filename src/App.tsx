@@ -14,6 +14,7 @@ import { ImportSessionLog } from './pages/ImportSessionLog'
 import { Settings } from './pages/Settings'
 import { useAuthUser } from './firebase/auth'
 import { seedDefaultFiltersIfEmpty } from './firebase/firestoreDb'
+import { migrateLegacyStatuses } from './lib/statusSync'
 
 function App() {
   const { user, loading } = useAuthUser()
@@ -21,6 +22,7 @@ function App() {
   useEffect(() => {
     if (!user) return
     seedDefaultFiltersIfEmpty()
+    migrateLegacyStatuses(user.uid).catch((err) => console.error('Status migration failed:', err))
   }, [user])
 
   if (loading) return null
