@@ -620,7 +620,7 @@ function FiltersTab() {
       ...editing,
       id: editing?.id ?? newId(),
       description: description.trim(),
-      position: position && Number(position) >= 1 ? Math.floor(Number(position)) : undefined,
+      position: position && Number(position) >= 1 ? Math.min(7, Math.floor(Number(position))) : undefined,
       dateAdded: editing?.dateAdded ?? nowIso(),
     })
     reset()
@@ -647,6 +647,7 @@ function FiltersTab() {
               onChange={(e) => setPosition(e.target.value)}
               type="number"
               min={1}
+              max={7}
               step={1}
               placeholder="e.g. 1"
             />
