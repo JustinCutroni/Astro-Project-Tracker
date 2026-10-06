@@ -294,6 +294,114 @@ function CamerasTab() {
 
   return (
     <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <form onSubmit={add}>
+          <div className="form-row">
+            <div className="form-field autocomplete-wrap">
+              <label>Description</label>
+              <input
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  if (editing) return
+                  setSensorWidthMm('')
+                  setSensorHeightMm('')
+                  setPixelSizeUm('')
+                  setResolutionWidthPx('')
+                  setResolutionHeightPx('')
+                  setDefaultGain('')
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={handleDescriptionBlur}
+                autoComplete="off"
+                placeholder="e.g. ZWO ASI2600MM Pro"
+              />
+              {suggestions.length > 0 && (
+                <ul className="suggestion-list">
+                  {suggestions.map((s) => (
+                    <li key={s.model}>
+                      <button type="button" onMouseDown={(e) => { e.preventDefault(); applySpec(s) }}>
+                        {s.model}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="form-field" style={{ flex: '0 0 7rem' }}>
+              <label>Type</label>
+              <input
+                value={cameraType}
+                onChange={(e) => setCameraType(e.target.value)}
+                placeholder="e.g. Mono"
+              />
+            </div>
+            <div className="form-field" style={{ flex: '0 0 7rem' }}>
+              <label>Default gain</label>
+              <input
+                value={defaultGain}
+                onChange={(e) => setDefaultGain(e.target.value)}
+                type="number"
+                placeholder="e.g. 100"
+              />
+            </div>
+          </div>
+
+          {(sensorWidthMm || sensorHeightMm || pixelSizeUm) && (
+            <div className="form-row">
+              <div className="form-field">
+                <label>Sensor (mm)</label>
+                <div className="form-row" style={{ gap: '0.4rem' }}>
+                  <input
+                    value={sensorWidthMm}
+                    onChange={(e) => setSensorWidthMm(e.target.value)}
+                    placeholder="width"
+                    type="number"
+                    step="0.1"
+                  />
+                  <input
+                    value={sensorHeightMm}
+                    onChange={(e) => setSensorHeightMm(e.target.value)}
+                    placeholder="height"
+                    type="number"
+                    step="0.1"
+                  />
+                </div>
+              </div>
+              <div className="form-field" style={{ flex: '0 0 6rem' }}>
+                <label>Pixel ({'µ'}m)</label>
+                <input
+                  value={pixelSizeUm}
+                  onChange={(e) => setPixelSizeUm(e.target.value)}
+                  type="number"
+                  step="0.01"
+                />
+              </div>
+              <div className="form-field">
+                <label>Resolution (px)</label>
+                <div className="form-row" style={{ gap: '0.4rem' }}>
+                  <input
+                    value={resolutionWidthPx}
+                    onChange={(e) => setResolutionWidthPx(e.target.value)}
+                    placeholder="width"
+                    type="number"
+                  />
+                  <input
+                    value={resolutionHeightPx}
+                    onChange={(e) => setResolutionHeightPx(e.target.value)}
+                    placeholder="height"
+                    type="number"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <FormActions editing={!!editing} onCancel={reset} />
+          </div>
+        </form>
+      </div>
       <CatalogList
         name="cameras"
         items={cameras}
@@ -318,112 +426,6 @@ function CamerasTab() {
           </>
         )}
       />
-      <form onSubmit={add}>
-        <div className="form-row">
-          <div className="form-field autocomplete-wrap">
-            <label>Description</label>
-            <input
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value)
-                if (editing) return
-                setSensorWidthMm('')
-                setSensorHeightMm('')
-                setPixelSizeUm('')
-                setResolutionWidthPx('')
-                setResolutionHeightPx('')
-                setDefaultGain('')
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={handleDescriptionBlur}
-              autoComplete="off"
-              placeholder="e.g. ZWO ASI2600MM Pro"
-            />
-            {suggestions.length > 0 && (
-              <ul className="suggestion-list">
-                {suggestions.map((s) => (
-                  <li key={s.model}>
-                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applySpec(s) }}>
-                      {s.model}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="form-field" style={{ flex: '0 0 7rem' }}>
-            <label>Type</label>
-            <input
-              value={cameraType}
-              onChange={(e) => setCameraType(e.target.value)}
-              placeholder="e.g. Mono"
-            />
-          </div>
-          <div className="form-field" style={{ flex: '0 0 7rem' }}>
-            <label>Default gain</label>
-            <input
-              value={defaultGain}
-              onChange={(e) => setDefaultGain(e.target.value)}
-              type="number"
-              placeholder="e.g. 100"
-            />
-          </div>
-        </div>
-
-        {(sensorWidthMm || sensorHeightMm || pixelSizeUm) && (
-          <div className="form-row">
-            <div className="form-field">
-              <label>Sensor (mm)</label>
-              <div className="form-row" style={{ gap: '0.4rem' }}>
-                <input
-                  value={sensorWidthMm}
-                  onChange={(e) => setSensorWidthMm(e.target.value)}
-                  placeholder="width"
-                  type="number"
-                  step="0.1"
-                />
-                <input
-                  value={sensorHeightMm}
-                  onChange={(e) => setSensorHeightMm(e.target.value)}
-                  placeholder="height"
-                  type="number"
-                  step="0.1"
-                />
-              </div>
-            </div>
-            <div className="form-field" style={{ flex: '0 0 6rem' }}>
-              <label>Pixel ({'µ'}m)</label>
-              <input
-                value={pixelSizeUm}
-                onChange={(e) => setPixelSizeUm(e.target.value)}
-                type="number"
-                step="0.01"
-              />
-            </div>
-            <div className="form-field">
-              <label>Resolution (px)</label>
-              <div className="form-row" style={{ gap: '0.4rem' }}>
-                <input
-                  value={resolutionWidthPx}
-                  onChange={(e) => setResolutionWidthPx(e.target.value)}
-                  placeholder="width"
-                  type="number"
-                />
-                <input
-                  value={resolutionHeightPx}
-                  onChange={(e) => setResolutionHeightPx(e.target.value)}
-                  placeholder="height"
-                  type="number"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <FormActions editing={!!editing} onCancel={reset} />
-        </div>
-      </form>
     </div>
   )
 }
@@ -481,6 +483,37 @@ function TelescopesTab() {
 
   return (
     <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
+          <div className="form-field autocomplete-wrap">
+            <label>Description</label>
+            <input
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                if (!editing) setFocalLength('')
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={handleBlur}
+              autoComplete="off"
+              placeholder="e.g. 8in RC Telescope"
+            />
+            <Suggestions
+              items={suggestions.map((s) => `${s.model} (${s.focalLengthMm}mm)`)}
+              onPick={(i) => applySpec(suggestions[i])}
+            />
+          </div>
+          <div className="form-field" style={{ flex: '0 0 7rem' }}>
+            <label>Focal length</label>
+            <input
+              value={focalLength}
+              onChange={(e) => setFocalLength(e.target.value)}
+              placeholder="1600"
+            />
+          </div>
+          <FormActions editing={!!editing} onCancel={reset} />
+        </form>
+      </div>
       <CatalogList
         name="telescopes"
         items={telescopes}
@@ -493,35 +526,6 @@ function TelescopesTab() {
           </>
         )}
       />
-      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field autocomplete-wrap">
-          <label>Description</label>
-          <input
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value)
-              if (!editing) setFocalLength('')
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={handleBlur}
-            autoComplete="off"
-            placeholder="e.g. 8in RC Telescope"
-          />
-          <Suggestions
-            items={suggestions.map((s) => `${s.model} (${s.focalLengthMm}mm)`)}
-            onPick={(i) => applySpec(suggestions[i])}
-          />
-        </div>
-        <div className="form-field" style={{ flex: '0 0 7rem' }}>
-          <label>Focal length</label>
-          <input
-            value={focalLength}
-            onChange={(e) => setFocalLength(e.target.value)}
-            placeholder="1600"
-          />
-        </div>
-        <FormActions editing={!!editing} onCancel={reset} />
-      </form>
     </div>
   )
 }
@@ -561,6 +565,29 @@ function MountsTab() {
 
   return (
     <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
+          <div className="form-field autocomplete-wrap">
+            <label>Description</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              autoComplete="off"
+              placeholder="e.g. EQ6-R Pro"
+            />
+            <Suggestions
+              items={suggestions}
+              onPick={(i) => {
+                setDescription(suggestions[i])
+                setShowSuggestions(false)
+              }}
+            />
+          </div>
+          <FormActions editing={!!editing} onCancel={reset} />
+        </form>
+      </div>
       <CatalogList
         name="mounts"
         items={mounts}
@@ -569,27 +596,6 @@ function MountsTab() {
         onEdit={startEdit}
         renderItem={(m) => m.description}
       />
-      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field autocomplete-wrap">
-          <label>Description</label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-            autoComplete="off"
-            placeholder="e.g. EQ6-R Pro"
-          />
-          <Suggestions
-            items={suggestions}
-            onPick={(i) => {
-              setDescription(suggestions[i])
-              setShowSuggestions(false)
-            }}
-          />
-        </div>
-        <FormActions editing={!!editing} onCancel={reset} />
-      </form>
     </div>
   )
 }
@@ -624,6 +630,30 @@ function FiltersTab() {
 
   return (
     <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
+          <div className="form-field">
+            <label>Description</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Ha"
+            />
+          </div>
+          <div className="form-field" style={{ flex: '0 0 7rem' }}>
+            <label>Position</label>
+            <input
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+              type="number"
+              min={1}
+              step={1}
+              placeholder="e.g. 1"
+            />
+          </div>
+          <FormActions editing={!!editing} onCancel={reset} />
+        </form>
+      </div>
       <CatalogList
         name="filters"
         items={filters}
@@ -640,28 +670,6 @@ function FiltersTab() {
           </>
         )}
       />
-      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field">
-          <label>Description</label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. Ha"
-          />
-        </div>
-        <div className="form-field" style={{ flex: '0 0 7rem' }}>
-          <label>Position</label>
-          <input
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-            type="number"
-            min={1}
-            step={1}
-            placeholder="e.g. 1"
-          />
-        </div>
-        <FormActions editing={!!editing} onCancel={reset} />
-      </form>
     </div>
   )
 }
@@ -696,6 +704,19 @@ function LocationsTab() {
 
   return (
     <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
+          <div className="form-field">
+            <label>Description</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Remote Observatory - Utah"
+            />
+          </div>
+          <FormActions editing={!!editing} onCancel={reset} />
+        </form>
+      </div>
       <div className="card">
         {locations.length === 0 && <div className="muted">No locations added yet.</div>}
         {locations.map((l) => (
@@ -711,17 +732,6 @@ function LocationsTab() {
           </div>
         ))}
       </div>
-      <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field">
-          <label>Description</label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. Remote Observatory - Utah"
-          />
-        </div>
-        <FormActions editing={!!editing} onCancel={reset} />
-      </form>
     </div>
   )
 }
