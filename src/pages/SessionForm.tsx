@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { bulkPut, getWhere, putDoc, removeDoc, removeWhere, useDocument } from '../firebase/firestoreDb'
+import { bulkPut, getWhere, putDoc, removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Project, type Session } from '../types/models'
+import { CAPTURE_STATUSES, type CaptureStatus, type FilterDef, type Frame, type Project, type Session } from '../types/models'
 import { CAPTURE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { today } from '../lib/format'
 import { buildSessionGear, defaultGearIds, idsFromGear, useGearCatalog, type GearIds } from '../lib/gear'
 import { GearFields } from '../components/GearFields'
+import { FilterPositionFields } from '../components/FilterPositionFields'
+import { inputsFromPositions, latestPositions, positionsFromInputs, type PositionInputs } from '../lib/filterPositions'
+import { sortFilters } from '../lib/filters'
+import { selectable } from '../lib/gear'
 
 export function SessionForm() {
   const { projectId, sessionId } = useParams()
@@ -18,6 +22,8 @@ export function SessionForm() {
   const project = useDocument<Project>('projects', projectId)
   const catalog = useGearCatalog()
   const knownLocations = useKnownLocations()
+  const filtersRaw = useCollection<FilterDef>('filters')
+  const projectSessions = useCollection<Session>('sessions', { field: 'projectId', value: projectId })
 
   const [date, setDate] = useState(today())
   const [location, setLocation] = useState('')
@@ -28,6 +34,13 @@ export function SessionForm() {
   // null until initialised: a new session starts from the project's gear that's
   // still in service; an existing one from what it recorded.
   const [gearIds, setGearIds] = useState<GearIds | null>(null)
+  const [positions, setPositions] = useState<PositionInputs | null>(null)
+
+  if (positions === null && projectSessions && (!isEdit || existing)) {
+    setPositions(
+      inputsFromPositions(existing ? existing.filterPositions : latestPositions(projectSessions)),
+    )
+  }
 
   if (gearIds === null && catalog && project && (!isEdit || existing)) {
     if (existing?.gear) setGearIds(idsFromGear(existing.gear))
@@ -52,7 +65,15 @@ export function SessionForm() {
   }
 
   if (isEdit && !existing) return null
-  if (!projectId || !catalog || !gearIds) return null
+  if (!projectId || !catalog || !gearIds || !positions || !filtersRaw || !project) return null
+
+  // The project's planned filters (all of them if none are planned), plus any
+  // filter that already has a slot so saving never drops one.
+  const positionFilters = sortFilters(
+    selectable(filtersRaw, Object.keys(positions)).filter(
+      (f) => project.filterIds.length === 0 || project.filterIds.includes(f.id) || f.id in positions,
+    ),
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -65,6 +86,7 @@ export function SessionForm() {
       filePath: filePath.trim() || undefined,
       notes: notes.trim() || undefined,
       gear: buildSessionGear(gearIds!, catalog!.cameras, catalog!.telescopes, catalog!.mounts, existing?.gear),
+      filterPositions: positionsFromInputs(positions!),
       updatedAt: nowIso(),
     }
 
@@ -168,6 +190,8 @@ export function SessionForm() {
         </div>
 
         <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} />
+
+        <FilterPositionFields filters={positionFilters} value={positions} onChange={setPositions} />
 
         <div className="form-field">
           <label htmlFor="notes">Notes</label>

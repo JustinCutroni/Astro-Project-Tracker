@@ -58,6 +58,9 @@ export interface Session {
   // (for old data) removed. `undefined` means a session logged before this
   // existed and not yet backfilled; `{}` means "no gear recorded".
   gear?: SessionGear
+  // Which filter wheel slot each filter sat in that night (filter id -> slot),
+  // since the wheel can be reloaded between sessions.
+  filterPositions?: Record<string, number>
   createdAt: string
   updatedAt: string
 }
