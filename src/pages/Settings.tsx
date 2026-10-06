@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { putDoc, removeDoc, useCollection } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { IconClose } from '../components/icons'
+import { IconClose, IconEdit } from '../components/icons'
 import { findCameraSpec, searchCameraCatalog, type CameraSpec } from '../data/cameraCatalog'
+import { findTelescopeSpec, searchTelescopeCatalog, type TelescopeSpec } from '../data/telescopeCatalog'
+import { searchMountCatalog } from '../data/mountCatalog'
 import type { Camera, FilterDef, Location, Mount, Telescope } from '../types/models'
 import { signOutUser, useAuthUser } from '../firebase/auth'
 import { sortFilters } from '../lib/filters'
@@ -65,8 +67,54 @@ export function Settings() {
   )
 }
 
+// Shared by every tab: the add form doubles as the edit form. Clicking the
+// pencil loads an item into the form; saving overwrites it in place.
+function FormActions({ editing, onCancel }: { editing: boolean; onCancel: () => void }) {
+  return (
+    <>
+      <button type="submit" className="btn btn-primary">
+        {editing ? 'Save' : 'Add'}
+      </button>
+      {editing && (
+        <button type="button" className="btn" onClick={onCancel}>
+          Cancel
+        </button>
+      )}
+    </>
+  )
+}
+
+function RowButtons({ onEdit, onRemove }: { onEdit: () => void; onRemove: () => void }) {
+  return (
+    <span style={{ display: 'flex', gap: '0.25rem' }}>
+      <button className="icon-btn" onClick={onEdit} aria-label="Edit">
+        <IconEdit />
+      </button>
+      <button className="icon-btn" onClick={onRemove} aria-label="Remove">
+        <IconClose />
+      </button>
+    </span>
+  )
+}
+
+function Suggestions({ items, onPick }: { items: string[]; onPick: (i: number) => void }) {
+  if (items.length === 0) return null
+  return (
+    <ul className="suggestion-list">
+      {items.map((label, i) => (
+        <li key={label}>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); onPick(i) }}>
+            {label}
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function CamerasTab() {
   const cameras = byDescription(useCollection<Camera>('cameras'))
+  const [editing, setEditing] = useState<Camera | null>(null)
   const [description, setDescription] = useState('')
   const [cameraType, setCameraType] = useState('')
   const [sensorWidthMm, setSensorWidthMm] = useState('')
@@ -99,21 +147,8 @@ function CamerasTab() {
     }
   }
 
-  async function add(e: React.FormEvent) {
-    e.preventDefault()
-    if (!description.trim()) return
-    await putDoc<Camera>('cameras', {
-      id: newId(),
-      description: description.trim(),
-      cameraType: cameraType.trim() || undefined,
-      sensorWidthMm: sensorWidthMm ? Number(sensorWidthMm) : undefined,
-      sensorHeightMm: sensorHeightMm ? Number(sensorHeightMm) : undefined,
-      pixelSizeUm: pixelSizeUm ? Number(pixelSizeUm) : undefined,
-      resolutionWidthPx: resolutionWidthPx ? Number(resolutionWidthPx) : undefined,
-      resolutionHeightPx: resolutionHeightPx ? Number(resolutionHeightPx) : undefined,
-      defaultGain: defaultGain ? Number(defaultGain) : undefined,
-      dateAdded: nowIso(),
-    })
+  function reset() {
+    setEditing(null)
     setDescription('')
     setCameraType('')
     setSensorWidthMm('')
@@ -122,6 +157,38 @@ function CamerasTab() {
     setResolutionWidthPx('')
     setResolutionHeightPx('')
     setDefaultGain('')
+  }
+
+  function startEdit(c: Camera) {
+    setEditing(c)
+    setDescription(c.description)
+    setCameraType(c.cameraType ?? '')
+    setSensorWidthMm(c.sensorWidthMm !== undefined ? String(c.sensorWidthMm) : '')
+    setSensorHeightMm(c.sensorHeightMm !== undefined ? String(c.sensorHeightMm) : '')
+    setPixelSizeUm(c.pixelSizeUm !== undefined ? String(c.pixelSizeUm) : '')
+    setResolutionWidthPx(c.resolutionWidthPx !== undefined ? String(c.resolutionWidthPx) : '')
+    setResolutionHeightPx(c.resolutionHeightPx !== undefined ? String(c.resolutionHeightPx) : '')
+    setDefaultGain(c.defaultGain !== undefined ? String(c.defaultGain) : '')
+    setShowSuggestions(false)
+  }
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault()
+    if (!description.trim()) return
+    await putDoc<Camera>('cameras', {
+      ...editing,
+      id: editing?.id ?? newId(),
+      description: description.trim(),
+      cameraType: cameraType.trim() || undefined,
+      sensorWidthMm: sensorWidthMm ? Number(sensorWidthMm) : undefined,
+      sensorHeightMm: sensorHeightMm ? Number(sensorHeightMm) : undefined,
+      pixelSizeUm: pixelSizeUm ? Number(pixelSizeUm) : undefined,
+      resolutionWidthPx: resolutionWidthPx ? Number(resolutionWidthPx) : undefined,
+      resolutionHeightPx: resolutionHeightPx ? Number(resolutionHeightPx) : undefined,
+      defaultGain: defaultGain ? Number(defaultGain) : undefined,
+      dateAdded: editing?.dateAdded ?? nowIso(),
+    })
+    reset()
   }
 
   async function remove(id: string) {
@@ -151,9 +218,7 @@ function CamerasTab() {
                 </div>
               )}
             </span>
-            <button className="icon-btn" onClick={() => remove(c.id)} aria-label="Remove">
-              <IconClose />
-            </button>
+            <RowButtons onEdit={() => startEdit(c)} onRemove={() => remove(c.id)} />
           </div>
         ))}
       </div>
@@ -165,6 +230,7 @@ function CamerasTab() {
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value)
+                if (editing) return
                 setSensorWidthMm('')
                 setSensorHeightMm('')
                 setPixelSizeUm('')
@@ -258,9 +324,9 @@ function CamerasTab() {
           </div>
         )}
 
-        <button type="submit" className="btn btn-primary">
-          Add
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <FormActions editing={!!editing} onCancel={reset} />
+        </div>
       </form>
     </div>
   )
@@ -268,20 +334,50 @@ function CamerasTab() {
 
 function TelescopesTab() {
   const telescopes = byDescription(useCollection<Telescope>('telescopes'))
+  const [editing, setEditing] = useState<Telescope | null>(null)
   const [description, setDescription] = useState('')
   const [focalLength, setFocalLength] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestions = showSuggestions ? searchTelescopeCatalog(description) : []
+
+  function applySpec(spec: TelescopeSpec) {
+    setDescription(spec.model)
+    setFocalLength(String(spec.focalLengthMm))
+    setShowSuggestions(false)
+  }
+
+  function handleBlur() {
+    setTimeout(() => setShowSuggestions(false), 150)
+    if (!focalLength) {
+      const spec = findTelescopeSpec(description)
+      if (spec) applySpec(spec)
+    }
+  }
+
+  function reset() {
+    setEditing(null)
+    setDescription('')
+    setFocalLength('')
+  }
+
+  function startEdit(t: Telescope) {
+    setEditing(t)
+    setDescription(t.description)
+    setFocalLength(t.focalLength ?? '')
+    setShowSuggestions(false)
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
     await putDoc<Telescope>('telescopes', {
-      id: newId(),
+      ...editing,
+      id: editing?.id ?? newId(),
       description: description.trim(),
       focalLength: focalLength.trim() || undefined,
-      dateAdded: nowIso(),
+      dateAdded: editing?.dateAdded ?? nowIso(),
     })
-    setDescription('')
-    setFocalLength('')
+    reset()
   }
 
   async function remove(id: string) {
@@ -299,19 +395,27 @@ function TelescopesTab() {
             <span>
               {t.description} {t.focalLength && <span className="muted">({t.focalLength}mm)</span>}
             </span>
-            <button className="icon-btn" onClick={() => remove(t.id)} aria-label="Remove">
-              <IconClose />
-            </button>
+            <RowButtons onEdit={() => startEdit(t)} onRemove={() => remove(t.id)} />
           </div>
         ))}
       </div>
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field">
+        <div className="form-field autocomplete-wrap">
           <label>Description</label>
           <input
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              setDescription(e.target.value)
+              if (!editing) setFocalLength('')
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={handleBlur}
+            autoComplete="off"
             placeholder="e.g. 8in RC Telescope"
+          />
+          <Suggestions
+            items={suggestions.map((s) => `${s.model} (${s.focalLengthMm}mm)`)}
+            onPick={(i) => applySpec(suggestions[i])}
           />
         </div>
         <div className="form-field" style={{ flex: '0 0 7rem' }}>
@@ -322,9 +426,7 @@ function TelescopesTab() {
             placeholder="1600"
           />
         </div>
-        <button type="submit" className="btn btn-primary">
-          Add
-        </button>
+        <FormActions editing={!!editing} onCancel={reset} />
       </form>
     </div>
   )
@@ -332,13 +434,32 @@ function TelescopesTab() {
 
 function MountsTab() {
   const mounts = byDescription(useCollection<Mount>('mounts'))
+  const [editing, setEditing] = useState<Mount | null>(null)
   const [description, setDescription] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestions = showSuggestions ? searchMountCatalog(description) : []
+
+  function reset() {
+    setEditing(null)
+    setDescription('')
+  }
+
+  function startEdit(m: Mount) {
+    setEditing(m)
+    setDescription(m.description)
+    setShowSuggestions(false)
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await putDoc<Mount>('mounts', { id: newId(), description: description.trim(), dateAdded: nowIso() })
-    setDescription('')
+    await putDoc<Mount>('mounts', {
+      ...editing,
+      id: editing?.id ?? newId(),
+      description: description.trim(),
+      dateAdded: editing?.dateAdded ?? nowIso(),
+    })
+    reset()
   }
 
   async function remove(id: string) {
@@ -354,24 +475,30 @@ function MountsTab() {
         {mounts.map((m) => (
           <div className="list-item" key={m.id}>
             <span>{m.description}</span>
-            <button className="icon-btn" onClick={() => remove(m.id)} aria-label="Remove">
-              <IconClose />
-            </button>
+            <RowButtons onEdit={() => startEdit(m)} onRemove={() => remove(m.id)} />
           </div>
         ))}
       </div>
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
-        <div className="form-field">
+        <div className="form-field autocomplete-wrap">
           <label>Description</label>
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            autoComplete="off"
             placeholder="e.g. EQ6-R Pro"
           />
+          <Suggestions
+            items={suggestions}
+            onPick={(i) => {
+              setDescription(suggestions[i])
+              setShowSuggestions(false)
+            }}
+          />
         </div>
-        <button type="submit" className="btn btn-primary">
-          Add
-        </button>
+        <FormActions editing={!!editing} onCancel={reset} />
       </form>
     </div>
   )
@@ -379,13 +506,24 @@ function MountsTab() {
 
 function FiltersTab() {
   const filters = sortedFilters(useCollection<FilterDef>('filters'))
+  const [editing, setEditing] = useState<FilterDef | null>(null)
   const [description, setDescription] = useState('')
+
+  function reset() {
+    setEditing(null)
+    setDescription('')
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await putDoc<FilterDef>('filters', { id: newId(), description: description.trim(), dateAdded: nowIso() })
-    setDescription('')
+    await putDoc<FilterDef>('filters', {
+      ...editing,
+      id: editing?.id ?? newId(),
+      description: description.trim(),
+      dateAdded: editing?.dateAdded ?? nowIso(),
+    })
+    reset()
   }
 
   async function remove(id: string) {
@@ -401,9 +539,13 @@ function FiltersTab() {
         {filters.map((f) => (
           <div className="list-item" key={f.id}>
             <span>{f.description}</span>
-            <button className="icon-btn" onClick={() => remove(f.id)} aria-label="Remove">
-              <IconClose />
-            </button>
+            <RowButtons
+              onEdit={() => {
+                setEditing(f)
+                setDescription(f.description)
+              }}
+              onRemove={() => remove(f.id)}
+            />
           </div>
         ))}
       </div>
@@ -416,9 +558,7 @@ function FiltersTab() {
             placeholder="e.g. Ha"
           />
         </div>
-        <button type="submit" className="btn btn-primary">
-          Add
-        </button>
+        <FormActions editing={!!editing} onCancel={reset} />
       </form>
     </div>
   )
@@ -426,13 +566,24 @@ function FiltersTab() {
 
 function LocationsTab() {
   const locations = byDescription(useCollection<Location>('locations'))
+  const [editing, setEditing] = useState<Location | null>(null)
   const [description, setDescription] = useState('')
+
+  function reset() {
+    setEditing(null)
+    setDescription('')
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim()) return
-    await putDoc<Location>('locations', { id: newId(), description: description.trim(), dateAdded: nowIso() })
-    setDescription('')
+    await putDoc<Location>('locations', {
+      ...editing,
+      id: editing?.id ?? newId(),
+      description: description.trim(),
+      dateAdded: editing?.dateAdded ?? nowIso(),
+    })
+    reset()
   }
 
   async function remove(id: string) {
@@ -448,9 +599,13 @@ function LocationsTab() {
         {locations.map((l) => (
           <div className="list-item" key={l.id}>
             <span>{l.description}</span>
-            <button className="icon-btn" onClick={() => remove(l.id)} aria-label="Remove">
-              <IconClose />
-            </button>
+            <RowButtons
+              onEdit={() => {
+                setEditing(l)
+                setDescription(l.description)
+              }}
+              onRemove={() => remove(l.id)}
+            />
           </div>
         ))}
       </div>
@@ -463,9 +618,7 @@ function LocationsTab() {
             placeholder="e.g. Remote Observatory - Utah"
           />
         </div>
-        <button type="submit" className="btn btn-primary">
-          Add
-        </button>
+        <FormActions editing={!!editing} onCancel={reset} />
       </form>
     </div>
   )
