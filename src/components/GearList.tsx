@@ -1,19 +1,21 @@
-import type { CameraSnapshot, MountSnapshot, TelescopeSnapshot } from '../types/models'
+import { sortFilters } from '../lib/filters'
+import type { CameraSnapshot, FilterSnapshot, MountSnapshot, TelescopeSnapshot } from '../types/models'
 
-// Read-only equipment card. Takes snapshot-shaped data, so it renders a
-// session's recorded gear and a project's live gear identically.
+// Read-only equipment card for a session's recorded gear.
 export function GearList({
   camera,
   telescope,
   mount,
+  filters,
   retiredIds,
 }: {
   camera?: CameraSnapshot
   telescope?: TelescopeSnapshot
   mount?: MountSnapshot
+  filters?: FilterSnapshot[]
   retiredIds?: Set<string>
 }) {
-  if (!camera && !telescope && !mount) return null
+  if (!camera && !telescope && !mount && !filters?.length) return null
   const tag = (id: string) => (retiredIds?.has(id) ? ' (retired)' : '')
 
   return (
@@ -47,6 +49,16 @@ export function GearList({
           <span className="muted">
             {mount.description}
             {tag(mount.id)}
+          </span>
+        </div>
+      )}
+      {filters && filters.length > 0 && (
+        <div className="list-item">
+          <span>Filters</span>
+          <span className="muted">
+            {sortFilters(filters)
+              .map((f) => `${f.description}${tag(f.id)}`)
+              .join(', ')}
           </span>
         </div>
       )}

@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { bulkPut, putDoc, removeDoc, useCollection, useDocument } from '../firebase/firestoreDb'
+import { bulkPut, putDoc, removeDoc, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { FRAME_TYPES, CAPTURE_STATUSES, type Camera, type CaptureStatus, type FilterDef, type Frame, type FrameType, type Project, type Session } from '../types/models'
+import { FRAME_TYPES, CAPTURE_STATUSES, type CaptureStatus, type Frame, type FrameType, type Session } from '../types/models'
 import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
-import { sortFilters } from '../lib/filters'
 import { extractFitsFrameInfo } from '../lib/fitsHeader'
 import { matchFilterCode } from '../lib/asiairFilenameParser'
-import { optionLabel, selectable } from '../lib/gear'
+import { sessionFilterOptions } from '../lib/gear'
 
 export function FrameForm() {
   const { projectId, sessionId, frameId } = useParams()
@@ -16,10 +15,6 @@ export function FrameForm() {
 
   const existing = useDocument<Frame>('frames', frameId)
   const session = useDocument<Session>('sessions', sessionId)
-  const project = useDocument<Project>('projects', projectId)
-  const camera = useDocument<Camera>('cameras', project?.cameraId)
-  const filtersRaw = useCollection<FilterDef>('filters')
-  const filters = filtersRaw && sortFilters(filtersRaw)
 
   const [frameType, setFrameType] = useState<FrameType>('light')
   const [filterId, setFilterId] = useState('')
@@ -62,28 +57,28 @@ export function FrameForm() {
     setStatusDefaulted(true)
   }
 
-  // Prefill gain from the camera's published optimal/unity gain, once the
-  // camera has actually loaded - still fully editable.
-  if (!isEdit && camera?.defaultGain !== undefined && !gain && !gainDefaulted) {
-    setGain(String(camera.defaultGain))
+  // Prefill gain from the session's camera's published optimal/unity gain,
+  // once the session has loaded - still fully editable.
+  const sessionCamera = session?.gear?.camera
+  if (!isEdit && sessionCamera?.defaultGain !== undefined && !gain && !gainDefaulted) {
+    setGain(String(sessionCamera.defaultGain))
     setGainDefaulted(true)
   }
 
   if (isEdit && !existing) return null
-  if (!filters || !projectId || !sessionId) return null
+  if (!session || !projectId || !sessionId) return null
 
   const totalSeconds = count * exposureSeconds
 
-  // Filters this batch could be duplicated to in one step - the project's
-  // own planned filters when set (the common case: mono imaging through a
-  // known filter set like S/Ha/OIII), otherwise every filter on record -
-  // always excluding whichever filter this batch itself already uses.
-  const activeFilters = filters.filter((f) => !f.retiredAt)
-  const duplicateCandidates = (
-    project && project.filterIds.length > 0
-      ? activeFilters.filter((f) => project.filterIds.includes(f.id))
-      : activeFilters
-  ).filter((f) => f.id !== filterId)
+  // Batches draw their filters from the session's own filter set. Editing a
+  // batch keeps whatever filter it already has even if the session has since
+  // dropped it.
+  const filters = sessionFilterOptions(
+    session,
+    existing?.filterId ? { id: existing.filterId, description: existing.filterName ?? 'Unknown filter' } : undefined,
+  )
+  const hasSessionFilters = (session.gear?.filters?.length ?? 0) > 0
+  const duplicateCandidates = sessionFilterOptions(session).filter((f) => f.id !== filterId)
 
   // The filter name is stored on the batch itself so it still reads right if
   // the catalog entry is later renamed or retired. Editing a batch without
@@ -91,7 +86,7 @@ export function FrameForm() {
   function filterNameFor(id: string | undefined): string | undefined {
     if (!id) return undefined
     if (existing && existing.filterId === id && existing.filterName) return existing.filterName
-    return filters?.find((f) => f.id === id)?.description
+    return filters.find((f) => f.id === id)?.description
   }
 
   function toggleDuplicateFilter(id: string) {
@@ -107,7 +102,7 @@ export function FrameForm() {
   // frame, not a batch.
   async function handleFitsFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file || !filters) return
+    if (!file) return
     const buffer = await file.arrayBuffer()
     const info = extractFitsFrameInfo(buffer)
 
@@ -117,7 +112,7 @@ export function FrameForm() {
     if (info.gain !== undefined) setGain(String(info.gain))
     if (info.tempF !== undefined) setTempF(info.tempF.toFixed(1))
     if (info.filterName) {
-      const matchedId = matchFilterCode(info.filterName, filters.filter((f) => !f.retiredAt))
+      const matchedId = matchFilterCode(info.filterName, filters)
       if (matchedId) setFilterId(matchedId)
     }
     e.target.value = ''
@@ -234,12 +229,17 @@ export function FrameForm() {
             <label htmlFor="filter">Filter</label>
             <select id="filter" value={filterId} onChange={(e) => setFilterId(e.target.value)}>
               <option value="">None</option>
-              {selectable(filters, [filterId]).map((f) => (
+              {filters.map((f) => (
                 <option key={f.id} value={f.id}>
-                  {optionLabel(f)}
+                  {f.description}
                 </option>
               ))}
             </select>
+            {!hasSessionFilters && (
+              <div className="muted" style={{ marginTop: '0.25rem' }}>
+                This session has no filters set. Add them under Edit session to pick one here.
+              </div>
+            )}
           </div>
         </div>
 

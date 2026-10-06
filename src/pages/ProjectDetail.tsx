@@ -1,5 +1,4 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { GearList } from '../components/GearList'
 import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { daysSince, formatDate, formatMinutes, parseGoalHours, today } from '../lib/format'
@@ -12,13 +11,10 @@ import {
 import {
   integrationMinutesForFrames,
   totalExposureSeconds,
-  type Camera,
   type FilterDef,
   type Frame,
-  type Mount,
   type Project,
   type Session,
-  type Telescope,
 } from '../types/models'
 import { sortFilters } from '../lib/filters'
 
@@ -30,9 +26,6 @@ export function ProjectDetail() {
   const sessions = useCollection<Session>('sessions', { field: 'projectId', value: id })
   const frames = useCollection<Frame>('frames', { field: 'projectId', value: id })
   const filtersRaw = useCollection<FilterDef>('filters')
-  const camera = useDocument<Camera>('cameras', project?.cameraId)
-  const telescope = useDocument<Telescope>('telescopes', project?.telescopeId)
-  const mount = useDocument<Mount>('mounts', project?.mountId)
 
   if (!project || !sessions || !frames || !filtersRaw) return null
   const filters = sortFilters(filtersRaw)
@@ -66,8 +59,6 @@ export function ProjectDetail() {
         name: frames.find((fr) => fr.filterId === id)?.filterName ?? 'Unknown filter',
       })),
   ].map((row) => ({ ...row, minutes: minutesByFilter.get(row.id)! }))
-
-  const plannedFilters = filters.filter((f) => project.filterIds.includes(f.id))
 
   async function handleDelete() {
     if (!project) return
@@ -123,13 +114,6 @@ export function ProjectDetail() {
         </div>
       )}
 
-      <GearList
-        camera={camera}
-        telescope={telescope}
-        mount={mount}
-        retiredIds={new Set([camera, telescope, mount].filter((g) => g?.retiredAt).map((g) => g!.id))}
-      />
-
       {minutesByFilter.size > 0 && (
         <div className="card">
           {filterRows.map((row) => (
@@ -141,13 +125,8 @@ export function ProjectDetail() {
         </div>
       )}
 
-      {(plannedFilters.length > 0 || project.storageRoot || project.notes) && (
+      {(project.storageRoot || project.notes) && (
         <div className="card">
-          {plannedFilters.length > 0 && (
-            <div className="muted" style={{ marginBottom: project.storageRoot || project.notes ? '0.5rem' : 0 }}>
-              Planned filters: {plannedFilters.map((f) => f.description).join(', ')}
-            </div>
-          )}
           {project.storageRoot && (
             <div className="muted" style={{ marginBottom: project.notes ? '0.5rem' : 0 }}>
               Storage: {project.storageRoot}

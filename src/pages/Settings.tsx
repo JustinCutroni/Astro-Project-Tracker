@@ -187,7 +187,7 @@ function CatalogList<T extends Retirable>({
       )}
       {items.length > 0 && (
         <div className="muted" style={{ fontSize: '0.78rem', paddingTop: '0.5rem' }}>
-          Retire gear you no longer use or have sold. Anything used in a project, session or frame
+          Retire gear you no longer use or have sold. Anything used in a session or frame
           can only be retired, so your history stays intact.
         </div>
       )}
