@@ -42,6 +42,7 @@ export function CopySession() {
   const filters = sortFilters(filtersRaw)
   const filterName = (id: string) => filters.find((f) => f.id === id)?.description ?? 'Unknown'
 
+  const hadFlatDarks = frames.some((f) => f.frameType === 'flat-dark')
   const lights = frames.filter((f) => f.frameType === 'light')
   // Darks/bias aren't tied to a night's sky, so they come along unchanged.
   const otherCarryOver = frames.filter((f) => f.frameType === 'dark' || f.frameType === 'bias')
@@ -102,7 +103,20 @@ export function CopySession() {
       }
     })
 
-    const all = [...copied, ...flats]
+    // Flat darks must match their flats' exposure, so they're rebuilt from the
+    // new flats (one per filter) - but only if the original session used them.
+    const flatDarks: Frame[] = hadFlatDarks
+      ? flats.map((flat) => ({
+          ...flat,
+          id: newId(),
+          frameType: 'flat-dark',
+          count:
+            frames.find((f) => f.frameType === 'flat-dark' && f.filterId === flat.filterId)?.count ??
+            flatCount,
+        }))
+      : []
+
+    const all = [...copied, ...flats, ...flatDarks]
     if (all.length > 0) await bulkPut<Frame>('frames', all)
 
     navigate(`/projects/${projectId}/sessions/${newSession.id}`)
@@ -177,6 +191,7 @@ export function CopySession() {
               never copied from the original - each session gets its own. Exposure is reused
               from the original session&rsquo;s flat for that filter, or left at 0 to fill in
               later.
+              {hadFlatDarks && ' Matching flat darks are recreated too.'}
             </div>
           ) : (
             <div className="muted">No filtered light frames in this session, so no flats will be created.</div>
