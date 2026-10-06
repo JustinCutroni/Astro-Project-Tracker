@@ -8,7 +8,7 @@ import { FRAME_TYPES, CAPTURE_STATUSES, type FilterDef, type Frame, type FrameTy
 import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { sortFilters } from '../lib/filters'
-import { buildSessionGear, defaultGearIds, optionLabel, selectable, useGearCatalog, type GearIds } from '../lib/gear'
+import { buildSessionGear, defaultGearIds, idsFromGear, optionLabel, selectable, sessionFilterOptions, useGearCatalog, type GearIds } from '../lib/gear'
 import { GearFields } from '../components/GearFields'
 import { IconClose } from '../components/icons'
 
@@ -29,7 +29,7 @@ interface BatchDraft {
   sampleFilename: string
 }
 
-function draftsFromParsed(parsed: ParsedAsiairLog, filters: FilterDef[]): BatchDraft[] {
+function draftsFromParsed(parsed: ParsedAsiairLog, filters: { id: string; description: string }[]): BatchDraft[] {
   return parsed.batches.map((b, i) => ({
     key: `${i}-${newId()}`,
     frameType: b.frameType,
@@ -58,6 +58,7 @@ export function ImportSessionLog() {
   const existingSession = useDocument<Session>('sessions', sessionId)
   const filtersRaw = useCollection<FilterDef>('filters')
   const filters = filtersRaw && sortFilters(filtersRaw)
+  const projectSessions = useCollection<Session>('sessions', { field: 'projectId', value: projectId })
   const catalog = useGearCatalog()
   const knownLocations = useKnownLocations()
 
@@ -69,11 +70,13 @@ export function ImportSessionLog() {
   const [filePath, setFilePath] = useState('')
   const [batchDrafts, setBatchDrafts] = useState<BatchDraft[]>([])
   const [sessionFieldsLoaded, setSessionFieldsLoaded] = useState(false)
-  // Only a brand-new session needs gear chosen here; an existing one keeps what it has.
+  // Only a brand-new session needs gear chosen here (starting from the project's
+  // latest session); an existing one keeps what it has.
   const [gearIds, setGearIds] = useState<GearIds | null>(null)
 
-  if (!isExistingSession && gearIds === null && catalog && project) {
-    setGearIds(defaultGearIds(catalog.cameras, catalog.telescopes, catalog.mounts, project))
+  if (!isExistingSession && gearIds === null && catalog && projectSessions) {
+    const latest = [...projectSessions].sort((a, b) => b.date.localeCompare(a.date))[0]
+    setGearIds(defaultGearIds(catalog, idsFromGear(latest?.gear)))
   }
 
   if (isExistingSession && existingSession && !sessionFieldsLoaded) {
@@ -89,7 +92,12 @@ export function ImportSessionLog() {
   const pid = projectId
   const allFilters = filters
   // Auto-matching from a log/filename only ever picks filters still in service.
-  const filterList = filters.filter((f) => !f.retiredAt)
+  // An existing session only offers its own filters (they're locked once it has
+  // been captured). A new one starts from everything in service: whatever its
+  // batches use is added to the session's filters when it's saved.
+  const filterList = existingSession
+    ? sessionFilterOptions(existingSession)
+    : filters.filter((f) => !f.retiredAt)
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -152,7 +160,10 @@ export function ImportSessionLog() {
         status: 'captured',
         filePath: filePath.trim() || undefined,
         notes: fileName ? `Imported from ASIAIR log: ${fileName}` : 'Imported from ASIAIR log',
-        gear: buildSessionGear(gearIds!, catalog!.cameras, catalog!.telescopes, catalog!.mounts),
+        gear: buildSessionGear(
+          { ...gearIds!, filterIds: [...new Set([...gearIds!.filterIds, ...batchDrafts.map((b) => b.filterId).filter(Boolean)])] },
+          catalog!,
+        ),
         createdAt: nowIso(),
         updatedAt: nowIso(),
       }
@@ -279,7 +290,12 @@ export function ImportSessionLog() {
             />
           </div>
           {!existingSession && catalog && gearIds && (
-            <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} />
+            <>
+              <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} />
+              <div className="muted" style={{ marginBottom: '0.9rem' }}>
+                Any filter the batches below use is added to this session's filters automatically.
+              </div>
+            </>
           )}
 
           <div className="page-header" style={{ marginTop: '1.5rem' }}>
@@ -342,7 +358,10 @@ export function ImportSessionLog() {
                   <label>Filter</label>
                   <select value={b.filterId} onChange={(e) => updateBatch(b.key, { filterId: e.target.value })}>
                     <option value="">None</option>
-                    {selectable(filters, [b.filterId]).map((f) => (
+                    {(existingSession
+                      ? sessionFilterOptions(existingSession, b.filterId ? { id: b.filterId, description: allFilters.find((f) => f.id === b.filterId)?.description ?? 'Unknown filter' } : undefined)
+                      : selectable(filters, [b.filterId])
+                    ).map((f) => (
                       <option key={f.id} value={f.id}>
                         {optionLabel(f)}
                       </option>

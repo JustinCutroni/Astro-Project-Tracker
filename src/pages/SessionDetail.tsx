@@ -5,7 +5,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
 import { CAPTURE_STATUS_DOT, CAPTURE_STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
 import { sortFilters } from '../lib/filters'
-import { buildSessionGear, frameFilterName, optionLabel, selectable, useGearCatalog } from '../lib/gear'
+import { frameFilterName, optionLabel, selectable, useGearCatalog } from '../lib/gear'
 import { GearList } from '../components/GearList'
 import {
   FRAME_TYPES,
@@ -36,24 +36,9 @@ export function SessionDetail() {
   if (!session || !frames || !filtersRaw || !projectId) return null
   const filters = sortFilters(filtersRaw)
 
-  // What was used that night, as recorded. A session not yet backfilled falls
-  // back to its project's current gear.
-  const gear =
-    session.gear ??
-    (project && catalog
-      ? buildSessionGear(
-          {
-            cameraId: project.cameraId ?? '',
-            telescopeId: project.telescopeId ?? '',
-            mountId: project.mountId ?? '',
-          },
-          catalog.cameras,
-          catalog.telescopes,
-          catalog.mounts,
-        )
-      : undefined)
+  const gear = session.gear
   const retiredIds = new Set(
-    [...(catalog?.cameras ?? []), ...(catalog?.telescopes ?? []), ...(catalog?.mounts ?? [])]
+    [...(catalog?.cameras ?? []), ...(catalog?.telescopes ?? []), ...(catalog?.mounts ?? []), ...(catalog?.filters ?? [])]
       .filter((g) => g.retiredAt)
       .map((g) => g.id),
   )
@@ -105,7 +90,13 @@ export function SessionDetail() {
       </div>
 
       {gear && (
-        <GearList camera={gear.camera} telescope={gear.telescope} mount={gear.mount} retiredIds={retiredIds} />
+        <GearList
+          camera={gear.camera}
+          telescope={gear.telescope}
+          mount={gear.mount}
+          filters={gear.filters}
+          retiredIds={retiredIds}
+        />
       )}
 
       {(session.filePath || session.notes) && (

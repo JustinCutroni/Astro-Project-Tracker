@@ -1,12 +1,21 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { bulkPut, getWhere, putDoc, removeDoc, removeWhere, useDocument } from '../firebase/firestoreDb'
+import { bulkPut, getWhere, putDoc, removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Project, type Session } from '../types/models'
+import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Session } from '../types/models'
 import { CAPTURE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { today } from '../lib/format'
-import { buildSessionGear, defaultGearIds, idsFromGear, useGearCatalog, type GearIds } from '../lib/gear'
+import {
+  buildSessionGear,
+  defaultGearIds,
+  effectiveReplacements,
+  filtersEditable,
+  idsFromGear,
+  remapFilterId,
+  useGearCatalog,
+  type GearIds,
+} from '../lib/gear'
 import { GearFields } from '../components/GearFields'
 
 export function SessionForm() {
@@ -15,8 +24,9 @@ export function SessionForm() {
   const isEdit = Boolean(sessionId)
 
   const existing = useDocument<Session>('sessions', sessionId)
-  const project = useDocument<Project>('projects', projectId)
   const catalog = useGearCatalog()
+  const projectSessions = useCollection<Session>('sessions', { field: 'projectId', value: projectId })
+  const sessionFrames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
   const knownLocations = useKnownLocations()
 
   const [date, setDate] = useState(today())
@@ -25,21 +35,20 @@ export function SessionForm() {
   const [filePath, setFilePath] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
-  // null until initialised: a new session starts from the project's gear that's
-  // still in service; an existing one from what it recorded.
+  // null until initialised: a new session starts from the project's most
+  // recent session's gear (minus anything retired since); an existing one from
+  // what it recorded.
   const [gearIds, setGearIds] = useState<GearIds | null>(null)
+  // Where batches on a dropped filter move to, where that differs from the
+  // automatic pairing (see GearFields).
+  const [replacementOverrides, setReplacementOverrides] = useState<Record<string, string>>({})
 
-  if (gearIds === null && catalog && project && (!isEdit || existing)) {
-    if (existing?.gear) setGearIds(idsFromGear(existing.gear))
-    else if (existing)
-      // Logged before sessions kept their own gear (and not backfilled yet):
-      // the project's gear is the best record, retired or not.
-      setGearIds({
-        cameraId: project.cameraId ?? '',
-        telescopeId: project.telescopeId ?? '',
-        mountId: project.mountId ?? '',
-      })
-    else setGearIds(defaultGearIds(catalog.cameras, catalog.telescopes, catalog.mounts, project))
+  if (gearIds === null && catalog && projectSessions && (!isEdit || existing)) {
+    if (existing) setGearIds(idsFromGear(existing.gear))
+    else {
+      const latest = [...projectSessions].sort((a, b) => b.date.localeCompare(a.date))[0]
+      setGearIds(defaultGearIds(catalog, idsFromGear(latest?.gear)))
+    }
   }
 
   if (isEdit && existing && !loaded) {
@@ -52,7 +61,10 @@ export function SessionForm() {
   }
 
   if (isEdit && !existing) return null
-  if (!projectId || !catalog || !gearIds) return null
+  if (!projectId || !catalog || !gearIds || !sessionFrames) return null
+
+  const originalFilterIds = existing ? idsFromGear(existing.gear).filterIds : []
+  const usedFilterIds = sessionFrames.map((f) => f.filterId)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -64,12 +76,31 @@ export function SessionForm() {
       status,
       filePath: filePath.trim() || undefined,
       notes: notes.trim() || undefined,
-      gear: buildSessionGear(gearIds!, catalog!.cameras, catalog!.telescopes, catalog!.mounts, existing?.gear),
+      gear: buildSessionGear(gearIds!, catalog!, existing?.gear),
       updatedAt: nowIso(),
     }
 
     if (isEdit && existing) {
       await putDoc<Session>('sessions', { ...existing, ...base })
+
+      // Filters only change while the session is planned. Batches that used a
+      // filter that was dropped follow it to its replacement.
+      if (filtersEditable(status)) {
+        const replacements = effectiveReplacements(
+          originalFilterIds,
+          gearIds!.filterIds,
+          usedFilterIds,
+          replacementOverrides,
+        )
+        const remapped = sessionFrames!
+          .filter((f) => f.filterId && !gearIds!.filterIds.includes(f.filterId))
+          .map((f) => {
+            const filterId = remapFilterId(f.filterId, gearIds!.filterIds, replacements)
+            const filterName = filterId ? catalog!.filters.find((x) => x.id === filterId)?.description : undefined
+            return { ...f, filterId, filterName, updatedAt: nowIso() }
+          })
+        if (remapped.length > 0) await bulkPut<Frame>('frames', remapped)
+      }
 
       // Marking a session as planning means nothing in it has actually been
       // shot yet, so its frame batches shouldn't claim a further-along
@@ -77,8 +108,8 @@ export function SessionForm() {
       // changes don't cascade: a session moving on doesn't mean every frame
       // batch in it has too.
       if (status === 'planning') {
-        const sessionFrames = await getWhere<Frame>('frames', 'sessionId', existing.id)
-        const toUpdate = sessionFrames.filter((f) => f.status !== 'planning')
+        const sessionFramesNow = await getWhere<Frame>('frames', 'sessionId', existing.id)
+        const toUpdate = sessionFramesNow.filter((f) => f.status !== 'planning')
         if (toUpdate.length > 0) {
           await bulkPut<Frame>(
             'frames',
@@ -167,7 +198,16 @@ export function SessionForm() {
           </div>
         </div>
 
-        <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} />
+        <GearFields
+          catalog={catalog}
+          ids={gearIds}
+          onChange={setGearIds}
+          filtersLocked={!filtersEditable(status)}
+          originalFilterIds={originalFilterIds}
+          usedFilterIds={usedFilterIds}
+          replacementOverrides={replacementOverrides}
+          onReplacementOverridesChange={setReplacementOverrides}
+        />
 
         <div className="form-field">
           <label htmlFor="notes">Notes</label>

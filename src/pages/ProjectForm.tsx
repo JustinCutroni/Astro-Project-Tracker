@@ -1,25 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { putDoc, useCollection, useDocument } from '../firebase/firestoreDb'
+import { putDoc, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import {
-  PROJECT_STATUSES,
-  type Camera,
-  type FilterDef,
-  type Mount,
-  type Project,
-  type ProjectStatus,
-  type Telescope,
-} from '../types/models'
+import { PROJECT_STATUSES, type Project, type ProjectStatus } from '../types/models'
 import { PROJECT_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { formatTarget, searchTargets } from '../lib/targetSearch'
-import { sortFilters } from '../lib/filters'
-import { optionLabel, selectable } from '../lib/gear'
-
-function byDescription<T extends { description: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => a.description.localeCompare(b.description))
-}
 
 export function ProjectForm() {
   const { id } = useParams()
@@ -27,10 +13,6 @@ export function ProjectForm() {
   const isEdit = Boolean(id)
 
   const existing = useDocument<Project>('projects', id)
-  const camerasRaw = useCollection<Camera>('cameras')
-  const telescopesRaw = useCollection<Telescope>('telescopes')
-  const mountsRaw = useCollection<Mount>('mounts')
-  const filtersRaw = useCollection<FilterDef>('filters')
   const knownLocations = useKnownLocations()
 
   const [target, setTarget] = useState('')
@@ -40,10 +22,6 @@ export function ProjectForm() {
   const [goalHours, setGoalHours] = useState('')
   const [storageRoot, setStorageRoot] = useState('')
   const [notes, setNotes] = useState('')
-  const [cameraId, setCameraId] = useState('')
-  const [telescopeId, setTelescopeId] = useState('')
-  const [mountId, setMountId] = useState('')
-  const [filterIds, setFilterIds] = useState<string[]>([])
   const [loaded, setLoaded] = useState(false)
   const [showTargetSuggestions, setShowTargetSuggestions] = useState(false)
   const targetSuggestions = showTargetSuggestions ? searchTargets(target) : []
@@ -56,25 +34,10 @@ export function ProjectForm() {
     setGoalHours(existing.goalHours || '')
     setStorageRoot(existing.storageRoot || '')
     setNotes(existing.notes || '')
-    setCameraId(existing.cameraId || '')
-    setTelescopeId(existing.telescopeId || '')
-    setMountId(existing.mountId || '')
-    setFilterIds(existing.filterIds)
     setLoaded(true)
   }
 
   if (isEdit && !existing) return null
-  if (!camerasRaw || !telescopesRaw || !mountsRaw || !filtersRaw) return null
-
-  // Retired gear is hidden unless this project already uses it.
-  const cameras = byDescription(selectable(camerasRaw, [cameraId]))
-  const telescopes = byDescription(selectable(telescopesRaw, [telescopeId]))
-  const mounts = byDescription(selectable(mountsRaw, [mountId]))
-  const filters = sortFilters(selectable(filtersRaw, filterIds))
-
-  function toggleFilter(id: string) {
-    setFilterIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]))
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -88,10 +51,6 @@ export function ProjectForm() {
       goalHours: goalHours.trim() || undefined,
       storageRoot: storageRoot.trim() || undefined,
       notes: notes.trim() || undefined,
-      cameraId: cameraId || undefined,
-      telescopeId: telescopeId || undefined,
-      mountId: mountId || undefined,
-      filterIds,
       updatedAt: nowIso(),
     }
 
@@ -206,74 +165,6 @@ export function ProjectForm() {
             />
           </div>
         </div>
-
-        <div className="form-row">
-          <div className="form-field">
-            <label htmlFor="camera">Camera</label>
-            <select id="camera" value={cameraId} onChange={(e) => setCameraId(e.target.value)}>
-              <option value="">Not set</option>
-              {cameras.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {optionLabel(c)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-field">
-            <label htmlFor="telescope">Telescope</label>
-            <select
-              id="telescope"
-              value={telescopeId}
-              onChange={(e) => setTelescopeId(e.target.value)}
-            >
-              <option value="">Not set</option>
-              {telescopes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {optionLabel(t)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-field">
-            <label htmlFor="mount">Mount</label>
-            <select id="mount" value={mountId} onChange={(e) => setMountId(e.target.value)}>
-              <option value="">Not set</option>
-              {mounts.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {optionLabel(m)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {filters.length > 0 && (
-          <div className="form-field">
-            <label>Filters planned for this project</label>
-            <details className="multi-select">
-              <summary>
-                {filterIds.length === 0
-                  ? 'None selected'
-                  : filters
-                      .filter((f) => filterIds.includes(f.id))
-                      .map((f) => f.description)
-                      .join(', ')}
-              </summary>
-              <div className="multi-select-menu">
-                {filters.map((f) => (
-                  <label key={f.id} className="list-item" style={{ cursor: 'pointer' }}>
-                    <span>{optionLabel(f)}</span>
-                    <input
-                      type="checkbox"
-                      checked={filterIds.includes(f.id)}
-                      onChange={() => toggleFilter(f.id)}
-                    />
-                  </label>
-                ))}
-              </div>
-            </details>
-          </div>
-        )}
 
         <div className="form-field">
           <label htmlFor="notes">Notes</label>

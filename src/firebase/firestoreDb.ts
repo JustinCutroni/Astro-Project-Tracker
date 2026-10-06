@@ -37,15 +37,21 @@ function colRef(name: CollectionName) {
 // `undefined` (unlike IndexedDB/Dexie, which tolerated it fine) - and this
 // app builds records with `field: x || undefined` throughout. Stripping
 // those keys here, once, means every call site doesn't have to know about it.
+function stripNested(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripNested)
+  const isPlainObject = typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype
+  return isPlainObject ? stripUndefined(value as object) : value
+}
+
 function stripUndefined<T extends object>(obj: T): T {
   const result = {} as T
   for (const key of Object.keys(obj) as (keyof T)[]) {
     const value = obj[key]
     if (value === undefined) continue
     // Nested plain objects (e.g. a session's gear snapshot) need the same
-    // treatment; arrays and class instances (Timestamps etc.) pass through.
-    const isPlainObject = typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype
-    result[key] = isPlainObject ? stripUndefined(value as object) as T[keyof T] : value
+    // treatment, as do plain objects inside arrays (a session's filter
+    // snapshots); class instances (Timestamps etc.) pass through.
+    result[key] = stripNested(value) as T[keyof T]
   }
   return result
 }

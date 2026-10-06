@@ -1,12 +1,13 @@
 import { useCollection } from '../firebase/firestoreDb'
+import { sortFilters } from './filters'
 import type {
   Camera,
   CameraSnapshot,
   FilterDef,
+  FilterSnapshot,
   Frame,
   Mount,
   MountSnapshot,
-  Project,
   Retirable,
   Session,
   SessionGear,
@@ -15,8 +16,9 @@ import type {
 } from '../types/models'
 
 // Gear (cameras, telescopes, mounts, filters) is reference data that history
-// points at, so it is retired rather than deleted once anything uses it, and
-// each session keeps its own point-in-time copy of what was used that night.
+// points at, so it is retired rather than deleted once anything uses it. Gear
+// belongs to sessions: each session keeps its own point-in-time copy of what
+// was used that night, and its frame batches draw from it.
 
 export function isRetired(item: Retirable | undefined): boolean {
   return Boolean(item?.retiredAt)
@@ -44,6 +46,7 @@ export function snapshotCamera(c: Camera): CameraSnapshot {
     resolutionWidthPx: c.resolutionWidthPx,
     resolutionHeightPx: c.resolutionHeightPx,
     sensorType: c.sensorType,
+    defaultGain: c.defaultGain,
   }
 }
 
@@ -55,11 +58,16 @@ export function snapshotMount(m: Mount): MountSnapshot {
   return { id: m.id, description: m.description }
 }
 
+export function snapshotFilter(f: FilterDef): FilterSnapshot {
+  return { id: f.id, description: f.description, position: f.position }
+}
+
 // Form state for a session's gear pickers: '' means "not set".
 export interface GearIds {
   cameraId: string
   telescopeId: string
   mountId: string
+  filterIds: string[]
 }
 
 export function idsFromGear(gear: SessionGear | undefined): GearIds {
@@ -67,6 +75,7 @@ export function idsFromGear(gear: SessionGear | undefined): GearIds {
     cameraId: gear?.camera?.id ?? '',
     telescopeId: gear?.telescope?.id ?? '',
     mountId: gear?.mount?.id ?? '',
+    filterIds: gear?.filters?.map((f) => f.id) ?? [],
   }
 }
 
@@ -74,13 +83,8 @@ export function idsFromGear(gear: SessionGear | undefined): GearIds {
 // unchanged keeps its existing snapshot rather than being refreshed from the
 // catalog - that is the whole point: later edits to the catalog entry must
 // not rewrite what was recorded for that night.
-export function buildSessionGear(
-  ids: GearIds,
-  cameras: Camera[],
-  telescopes: Telescope[],
-  mounts: Mount[],
-  previous?: SessionGear,
-): SessionGear {
+export function buildSessionGear(ids: GearIds, catalog: GearCatalog, previous?: SessionGear): SessionGear {
+  const { cameras, telescopes, mounts, filters } = catalog
   const gear: SessionGear = {}
 
   if (ids.cameraId) {
@@ -104,12 +108,84 @@ export function buildSessionGear(
       if (live) gear.mount = snapshotMount(live)
     }
   }
+  const filterSnapshots = ids.filterIds.flatMap((id) => {
+    const kept = previous?.filters?.find((f) => f.id === id)
+    if (kept) return [kept]
+    const live = filters.find((f) => f.id === id)
+    return live ? [snapshotFilter(live)] : []
+  })
+  if (filterSnapshots.length > 0) gear.filters = filterSnapshots
   return gear
 }
 
+// A session's filters are only open to change while it is still planned;
+// once it has been captured they record what was actually in the light path.
+export function filtersEditable(status: Session['status']): boolean {
+  return status === 'planning'
+}
+
+// --- Re-pointing frame batches when a planned session's filters change ---
+//
+// Removing a filter from a planned session (say S -> H) means its batches
+// that used it have to go somewhere. `replacements` maps each removed filter
+// id to the filter id to move those batches to, or '' to clear the filter.
+
+// Filters dropped from the set that frame batches still use, in their original order.
+export function removedFiltersInUse(
+  originalIds: string[],
+  newIds: string[],
+  usedIds: (string | undefined)[],
+): string[] {
+  return originalIds.filter((id) => !newIds.includes(id) && usedIds.includes(id))
+}
+
+// Pairs each dropped filter with a newly added one in order (S dropped, H
+// added: S -> H), so the common swap needs no extra clicks. Anything left
+// over defaults to clearing the filter.
+export function defaultReplacements(
+  originalIds: string[],
+  newIds: string[],
+  removed: string[],
+): Record<string, string> {
+  const added = newIds.filter((id) => !originalIds.includes(id))
+  return Object.fromEntries(removed.map((id, i) => [id, added[i] ?? '']))
+}
+
+// The replacements to apply: the automatic pairing, overridden by anything the
+// user picked explicitly.
+export function effectiveReplacements(
+  originalIds: string[],
+  newIds: string[],
+  usedIds: (string | undefined)[],
+  overrides: Record<string, string>,
+): Record<string, string> {
+  const removed = removedFiltersInUse(originalIds, newIds, usedIds)
+  return { ...defaultReplacements(originalIds, newIds, removed), ...overrides }
+}
+
+// Where a batch with this filter ends up after the change.
+export function remapFilterId(
+  filterId: string | undefined,
+  newIds: string[],
+  replacements: Record<string, string>,
+): string | undefined {
+  if (!filterId || newIds.includes(filterId)) return filterId
+  return replacements[filterId] || undefined
+}
+
+// The filters a frame batch may use in this session, in wheel order, plus
+// whichever one the batch already has (so editing it never blanks the field).
+export function sessionFilterOptions(
+  session: Session | undefined,
+  keep?: { id: string; description: string },
+): FilterSnapshot[] {
+  const own = session?.gear?.filters ?? []
+  return sortFilters(keep && !own.some((f) => f.id === keep.id) ? [...own, keep] : own)
+}
+
 // The first candidate id that points at gear still in service, else ''. Used
-// to pre-fill a new session from the previous session / the project without
-// defaulting to something that has since been sold.
+// to pre-fill a new session from the previous one without defaulting to
+// something that has since been sold.
 export function firstActiveId(items: Retirable[], ...candidates: (string | undefined)[]): string {
   for (const id of candidates) {
     if (id && items.some((item) => item.id === id && !item.retiredAt)) return id
@@ -117,18 +193,18 @@ export function firstActiveId(items: Retirable[], ...candidates: (string | undef
   return ''
 }
 
-export function defaultGearIds(
-  cameras: Camera[],
-  telescopes: Telescope[],
-  mounts: Mount[],
-  ...sources: (Pick<Project, 'cameraId' | 'telescopeId' | 'mountId'> | GearIds | undefined)[]
-): GearIds {
+// Pre-fills a new session from the most recent session's gear (what you
+// imaged with last time is the best guess for tonight), skipping anything
+// retired since.
+export function defaultGearIds(catalog: GearCatalog, ...sources: (GearIds | undefined)[]): GearIds {
   const pick = (key: 'cameraId' | 'telescopeId' | 'mountId', items: Retirable[]) =>
     firstActiveId(items, ...sources.map((s) => s?.[key]))
+  const source = sources.find((s) => s && s.filterIds.length > 0)
   return {
-    cameraId: pick('cameraId', cameras),
-    telescopeId: pick('telescopeId', telescopes),
-    mountId: pick('mountId', mounts),
+    cameraId: pick('cameraId', catalog.cameras),
+    telescopeId: pick('telescopeId', catalog.telescopes),
+    mountId: pick('mountId', catalog.mounts),
+    filterIds: (source?.filterIds ?? []).filter((id) => catalog.filters.some((f) => f.id === id && !f.retiredAt)),
   }
 }
 
@@ -143,39 +219,35 @@ export interface GearCatalog {
   cameras: Camera[]
   telescopes: Telescope[]
   mounts: Mount[]
+  filters: FilterDef[]
 }
 
-// All three gear collections, or undefined until every one has loaded.
+// All four gear collections, or undefined until every one has loaded.
 export function useGearCatalog(): GearCatalog | undefined {
   const cameras = useCollection<Camera>('cameras')
   const telescopes = useCollection<Telescope>('telescopes')
   const mounts = useCollection<Mount>('mounts')
-  if (!cameras || !telescopes || !mounts) return undefined
-  return { cameras, telescopes, mounts }
+  const filters = useCollection<FilterDef>('filters')
+  if (!cameras || !telescopes || !mounts || !filters) return undefined
+  return { cameras, telescopes, mounts, filters }
 }
 
 // How many records point at each piece of gear (by id), so Settings can tell
 // what is safe to delete outright and what must be retired instead.
 export function useGearUsage(): Map<string, number> | undefined {
-  const projects = useCollection<Project>('projects')
   const sessions = useCollection<Session>('sessions')
   const frames = useCollection<Frame>('frames')
-  if (!projects || !sessions || !frames) return undefined
+  if (!sessions || !frames) return undefined
 
   const usage = new Map<string, number>()
   const bump = (id: string | undefined) => {
     if (id) usage.set(id, (usage.get(id) ?? 0) + 1)
   }
-  for (const p of projects) {
-    bump(p.cameraId)
-    bump(p.telescopeId)
-    bump(p.mountId)
-    p.filterIds.forEach(bump)
-  }
   for (const s of sessions) {
     bump(s.gear?.camera?.id)
     bump(s.gear?.telescope?.id)
     bump(s.gear?.mount?.id)
+    s.gear?.filters?.forEach((f) => bump(f.id))
   }
   for (const f of frames) bump(f.filterId)
   return usage

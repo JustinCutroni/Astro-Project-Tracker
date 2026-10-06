@@ -26,10 +26,11 @@ The data model mirrors an existing AppSheet app tracking the same projects,
 so the two can be reconciled or synced later without another reshape:
 
 - **Projects** — a target (e.g. "M31 - Andromeda Galaxy"), location, goal
-  hours, storage location, a single camera/telescope/mount, the filters
-  planned for it, and a status: Planning → Imaging → Processing → Complete.
+  hours, storage location, and a status: Planning → Imaging → Processing →
+  Complete. A project has no equipment of its own - that belongs to each
+  session.
 - **Sessions** — one entry per night/outing, under a project: date,
-  location, a file path (where that night's raw files live), notes, and its
+  location, the equipment used (mount, telescope, camera and filters), a file path (where that night's raw files live), notes, and its
   own status: Planning → Captured → Transferred → Processing → Complete.
 - **Frames** — under a session, one record per batch of subs of the same
   type/filter/settings: frame type (Light/Dark/Flat/Flat Dark/Bias), filter,
@@ -60,18 +61,21 @@ Selling or replacing gear must never rewrite your past work, so:
   (and from auto-matching on log import) but stays on record. Retired gear
   sits behind a "Show retired" toggle and can be restored. The delete button
   only appears for gear that nothing uses.
-- **Every session records its own gear.** A session stores the camera,
-  telescope and mount used that night, copied in when the session is saved
-  (new sessions start from the project's gear, Copy session from the source
-  session's), and each frame batch stores its filter's name. Renaming or
-  editing a catalog entry later doesn't change what an old session says it
-  used. Gear a session already uses stays selectable (marked "retired") when
-  you edit it.
-- **Older sessions are backfilled once.** The first launch after this
-  shipped stamps existing sessions with a snapshot of their project's
-  current camera/telescope/mount and fills in frame filter names. It's the
-  best reconstruction available - a project's gear is the only record of what
-  an old session used - and gear deleted before this can't be recovered.
+- **Every session owns its equipment.** A session stores the mount,
+  telescope, camera and filters used that night, copied in when the session
+  is saved, so a project can use a different rig from one night to the next.
+  New sessions start from the project's most recent session; Copy session
+  starts from the source session. Frame batches draw on their session:
+  the filter picker offers that session's filters and a new batch's gain
+  defaults from the session's camera. Each frame batch also stores its
+  filter's name. Renaming or editing a catalog entry later doesn't change
+  what an old session says it used, and gear a session already uses stays
+  selectable (marked "retired") when you edit it.
+- **Filters lock once captured.** While a session is Planning you can change
+  its filters; batches on a filter you remove move to a replacement you pick
+  (swapping S for H in a copied session pairs them automatically). Once the
+  session is marked captured its filters are fixed - set it back to Planning
+  to change them.
 
 ## Tonight, at a glance
 

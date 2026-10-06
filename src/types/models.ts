@@ -37,10 +37,8 @@ export interface Project {
   goalHours?: string // free text, e.g. "20+" (matches source app's text field)
   storageRoot?: string // where this project's files live, e.g. "D:\Astro\M31"
   notes?: string
-  cameraId?: string
-  telescopeId?: string
-  mountId?: string
-  filterIds: string[] // filters planned for this project
+  // Equipment lives on sessions, not here: a project can use a different rig
+  // from one night to the next.
   createdAt: string
   updatedAt: string
 }
@@ -53,10 +51,10 @@ export interface Session {
   status: CaptureStatus
   filePath?: string // where this session's raw files currently live
   notes?: string
-  // The equipment actually used that night, copied in at the time so the
-  // record stays accurate if the catalog entry is later edited, retired or
-  // (for old data) removed. `undefined` means a session logged before this
-  // existed and not yet backfilled; `{}` means "no gear recorded".
+  // The equipment (mount, scope, camera, filters) used or planned for that
+  // night, copied in at the time so the record stays accurate if the catalog
+  // entry is later edited or retired. Its frame batches draw their filters and
+  // defaults from here. `{}` means "no gear recorded".
   gear?: SessionGear
   createdAt: string
   updatedAt: string
@@ -143,14 +141,17 @@ export type CameraSnapshot = Pick<
   | 'resolutionWidthPx'
   | 'resolutionHeightPx'
   | 'sensorType'
+  | 'defaultGain'
 >
 export type TelescopeSnapshot = Pick<Telescope, 'id' | 'description' | 'focalLength'>
 export type MountSnapshot = Pick<Mount, 'id' | 'description'>
+export type FilterSnapshot = Pick<FilterDef, 'id' | 'description' | 'position'>
 
 export interface SessionGear {
   camera?: CameraSnapshot
   telescope?: TelescopeSnapshot
   mount?: MountSnapshot
+  filters?: FilterSnapshot[]
 }
 
 export interface Location {

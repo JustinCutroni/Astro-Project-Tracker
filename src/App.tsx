@@ -14,7 +14,6 @@ import { ImportSessionLog } from './pages/ImportSessionLog'
 import { Settings } from './pages/Settings'
 import { useAuthUser } from './firebase/auth'
 import { seedDefaultFiltersIfEmpty } from './firebase/firestoreDb'
-import { backfillGearHistory } from './firebase/backfillGearHistory'
 
 function App() {
   const { user, loading } = useAuthUser()
@@ -22,7 +21,6 @@ function App() {
   useEffect(() => {
     if (!user) return
     seedDefaultFiltersIfEmpty()
-    backfillGearHistory(user.uid)
   }, [user])
 
   if (loading) return null
