@@ -7,9 +7,6 @@ import { sortFilters } from '../lib/filters'
 import { useKnownLocations } from '../lib/locations'
 import { buildSessionGear, defaultGearIds, idsFromGear, useGearCatalog, type GearIds } from '../lib/gear'
 import { GearFields } from '../components/GearFields'
-import { FilterPositionFields } from '../components/FilterPositionFields'
-import { inputsFromPositions, positionsFromInputs, type PositionInputs } from '../lib/filterPositions'
-import { selectable } from '../lib/gear'
 import type { FilterDef, Frame, Project, Session } from '../types/models'
 
 const DEFAULT_FLAT_COUNT = 20
@@ -38,10 +35,6 @@ export function CopySession() {
   // Starts from the gear the source session used, falling back to the project's,
   // skipping anything retired since.
   const [gearIds, setGearIds] = useState<GearIds | null>(null)
-  // Wheel slots start as the source session's; edit if the wheel was reloaded.
-  const [positions, setPositions] = useState<PositionInputs | null>(null)
-
-  if (positions === null && source) setPositions(inputsFromPositions(source.filterPositions))
 
   if (gearIds === null && source && project && catalog) {
     setGearIds(
@@ -56,7 +49,7 @@ export function CopySession() {
     setLoaded(true)
   }
 
-  if (!source || !sourceFrames || !filtersRaw || !projectId || !catalog || !gearIds || !positions) return null
+  if (!source || !sourceFrames || !filtersRaw || !projectId || !catalog || !gearIds) return null
 
   const frames = sourceFrames
   const filters = sortFilters(filtersRaw)
@@ -93,7 +86,6 @@ export function CopySession() {
       // Fresh snapshot from the catalog: this is tonight's gear, not a copy of
       // last night's record.
       gear: buildSessionGear(gearIds!, catalog!.cameras, catalog!.telescopes, catalog!.mounts),
-      filterPositions: positionsFromInputs(positions!),
       createdAt: nowIso(),
       updatedAt: nowIso(),
     }
@@ -180,12 +172,6 @@ export function CopySession() {
         </div>
 
         <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} />
-
-        <FilterPositionFields
-          filters={selectable(filters, Object.keys(positions))}
-          value={positions}
-          onChange={setPositions}
-        />
 
         <div className="form-field">
           <label htmlFor="filePath">File path</label>

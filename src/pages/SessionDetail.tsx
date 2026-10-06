@@ -7,7 +7,6 @@ import { CAPTURE_STATUS_DOT, CAPTURE_STATUS_LABEL, FRAME_TYPE_LABEL } from '../l
 import { sortFilters } from '../lib/filters'
 import { buildSessionGear, frameFilterName, optionLabel, selectable, useGearCatalog } from '../lib/gear'
 import { GearList } from '../components/GearList'
-import { describePositions } from '../lib/filterPositions'
 import {
   FRAME_TYPES,
   integrationMinutesForFrames,
@@ -107,15 +106,6 @@ export function SessionDetail() {
 
       {gear && (
         <GearList camera={gear.camera} telescope={gear.telescope} mount={gear.mount} retiredIds={retiredIds} />
-      )}
-
-      {session.filterPositions && (
-        <div className="card">
-          <div className="list-item">
-            <span>Filter wheel</span>
-            <span className="muted">{describePositions(session.filterPositions, filters).join(' · ')}</span>
-          </div>
-        </div>
       )}
 
       {(session.filePath || session.notes) && (
