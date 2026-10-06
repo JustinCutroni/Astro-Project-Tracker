@@ -26,18 +26,15 @@ The data model mirrors an existing AppSheet app tracking the same projects,
 so the two can be reconciled or synced later without another reshape:
 
 - **Projects** — a target (e.g. "M31 - Andromeda Galaxy"), goal
-  hours, and a status: Planning → Imaging → Processing →
-  Complete. A project has no equipment of its own - that belongs to each
+  hours, and a status (see **Status** below). A project has no equipment of its own - that belongs to each
   session.
 - **Sessions** — one entry per night/outing, under a project: date,
   location, the equipment used (mount, telescope, camera and filters), a file path (where that night's raw files live), notes, and its
-  own status: Planning → Captured → Transferred → Processing → Complete.
+  own status.
 - **Frames** — under a session, one record per batch of subs of the same
   type/filter/settings: frame type (Light/Dark/Flat/Flat Dark/Bias), filter,
   count, exposure length, gain, offset, temperature, binning, a file path,
-  and its own Planning → Captured → Transferred → Processing → Complete
-  status (shared with sessions - a new batch under a still-planned session
-  starts out planned too). Deleting a project deletes all of its sessions
+  and its own status (a new batch starts at its session's status). Deleting a project deletes all of its sessions
   and frames with it.
 - **Cameras / Telescopes / Mounts / Filters / Locations** — manage your own
   gear, filter list, and imaging locations under Settings, so session
@@ -51,6 +48,21 @@ so the two can be reconciled or synced later without another reshape:
   project also shows days since its last capture and a progress bar toward
   its goal hours (again, Light frames only), so you can see what's stalled
   and what's close to done at a glance.
+
+## Status
+
+Projects, sessions and frame batches share one status, in pipeline order:
+**Planning → Capturing → Transferring → Processing → Complete**.
+
+- **Down:** changing a session's status updates its frame batches. Moving
+  forward brings batches that are behind up to the new status (ones already
+  ahead are left alone); moving backward pulls back any batch that's further
+  along.
+- **Up:** a session advances by itself once *every* one of its batches has
+  reached the next stage, and a project once *every* session has. This only
+  ever moves forward, so a session you leave as Planning (say, clouded out)
+  holds its project where it is. A project's status can't be set ahead of its
+  least-advanced session; it gets there on its own.
 
 ## Gear and history
 
@@ -71,10 +83,10 @@ Selling or replacing gear must never rewrite your past work, so:
   filter's name. Renaming or editing a catalog entry later doesn't change
   what an old session says it used, and gear a session already uses stays
   selectable (marked "retired") when you edit it.
-- **Filters lock once captured.** While a session is Planning you can change
+- **Filters lock once a session leaves Planning.** While a session is Planning you can change
   its filters; batches on a filter you remove move to a replacement you pick
   (swapping S for H in a copied session pairs them automatically). Once the
-  session is marked captured its filters are fixed - set it back to Planning
+  session moves past Planning its filters are fixed - set it back to Planning
   to change them.
 
 ## Tonight, at a glance

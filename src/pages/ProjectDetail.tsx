@@ -3,10 +3,8 @@ import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/
 import { StatusBadge } from '../components/StatusBadge'
 import { daysSince, formatDate, formatMinutes, parseGoalHours, today } from '../lib/format'
 import {
-  PROJECT_STATUS_DOT,
-  PROJECT_STATUS_LABEL,
-  CAPTURE_STATUS_DOT,
-  CAPTURE_STATUS_LABEL,
+  STATUS_DOT,
+  STATUS_LABEL,
 } from '../lib/status'
 import {
   integrationMinutesForFrames,
@@ -80,8 +78,8 @@ export function ProjectDetail() {
           {project.projectName && <div className="muted">{project.target}</div>}
         </div>
         <StatusBadge
-          label={PROJECT_STATUS_LABEL[project.status]}
-          dot={PROJECT_STATUS_DOT[project.status]}
+          label={STATUS_LABEL[project.status]}
+          dot={STATUS_DOT[project.status]}
         />
       </div>
 
@@ -163,8 +161,8 @@ export function ProjectDetail() {
               <div className="card-title-row">
                 <h3>{formatDate(session.date)}</h3>
                 <StatusBadge
-                  label={CAPTURE_STATUS_LABEL[session.status]}
-                  dot={CAPTURE_STATUS_DOT[session.status]}
+                  label={STATUS_LABEL[session.status]}
+                  dot={STATUS_DOT[session.status]}
                 />
               </div>
               <div className="muted">

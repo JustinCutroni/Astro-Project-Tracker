@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   getDocsFromServer,
   onSnapshot,
@@ -133,6 +134,11 @@ export async function getAll<T>(name: CollectionName): Promise<T[]> {
 export async function getAllFromServer<T>(name: CollectionName): Promise<T[]> {
   const snap = await getDocsFromServer(colRef(name))
   return snap.docs.map((d) => d.data() as T)
+}
+
+export async function getOne<T>(name: CollectionName, id: string): Promise<T | undefined> {
+  const snap = await getDoc(doc(colRef(name), id))
+  return snap.exists() ? (snap.data() as T) : undefined
 }
 
 export async function getWhere<T>(

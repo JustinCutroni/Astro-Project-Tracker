@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { putDoc, useDocument } from '../firebase/firestoreDb'
+import { putDoc, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { PROJECT_STATUSES, type Project, type ProjectStatus } from '../types/models'
-import { PROJECT_STATUS_LABEL } from '../lib/status'
+import { STATUSES, type Project, type Session, type Status } from '../types/models'
+import { STATUS_LABEL } from '../lib/status'
+import { earliestStatus, statusRank } from '../lib/statusSync'
 import { formatTarget, searchTargets } from '../lib/targetSearch'
 
 export function ProjectForm() {
@@ -12,10 +13,11 @@ export function ProjectForm() {
   const isEdit = Boolean(id)
 
   const existing = useDocument<Project>('projects', id)
+  const sessions = useCollection<Session>('sessions', { field: 'projectId', value: id })
 
   const [target, setTarget] = useState('')
   const [projectName, setProjectName] = useState('')
-  const [status, setStatus] = useState<ProjectStatus>('planning')
+  const [status, setStatus] = useState<Status>('planning')
   const [goalHours, setGoalHours] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -32,6 +34,12 @@ export function ProjectForm() {
   }
 
   if (isEdit && !existing) return null
+
+  // A project can't be moved ahead of its least-advanced session; it advances
+  // by itself once they all catch up. With no sessions there's nothing to wait
+  // on. Going backward, or staying where it is, is always allowed.
+  const earliestSession = sessions && earliestStatus(sessions)
+  const maxStatusRank = earliestSession ? statusRank(earliestSession) : STATUSES.length - 1
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -111,14 +119,19 @@ export function ProjectForm() {
             <select
               id="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as ProjectStatus)}
+              onChange={(e) => setStatus(e.target.value as Status)}
             >
-              {PROJECT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {PROJECT_STATUS_LABEL[s]}
+              {STATUSES.map((s) => (
+                <option key={s} value={s} disabled={statusRank(s) > maxStatusRank && s !== existing?.status}>
+                  {STATUS_LABEL[s]}
                 </option>
               ))}
             </select>
+            {earliestSession && (
+              <div className="muted">
+                Can't move past {STATUS_LABEL[earliestSession]} until every session has.
+              </div>
+            )}
           </div>
           <div className="form-field">
             <label htmlFor="goalHours">Goal hours</label>

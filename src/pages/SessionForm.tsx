@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { bulkPut, getWhere, putDoc, removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
+import { bulkPut, putDoc, removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Session } from '../types/models'
-import { CAPTURE_STATUS_LABEL } from '../lib/status'
+import { STATUSES, type Status, type Frame, type Session } from '../types/models'
+import { STATUS_LABEL } from '../lib/status'
+import { cascadeStatus, rollUpProject } from '../lib/statusSync'
 import { useKnownLocations } from '../lib/locations'
 import { today } from '../lib/format'
 import {
@@ -31,7 +32,7 @@ export function SessionForm() {
 
   const [date, setDate] = useState(today())
   const [location, setLocation] = useState('')
-  const [status, setStatus] = useState<CaptureStatus>('planning')
+  const [status, setStatus] = useState<Status>('planning')
   const [filePath, setFilePath] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -81,7 +82,14 @@ export function SessionForm() {
     }
 
     if (isEdit && existing) {
-      await putDoc<Session>('sessions', { ...existing, ...base })
+      const saved: Session = { ...existing, ...base }
+      await putDoc<Session>('sessions', saved)
+
+      // Frame batches this save changes, by id: a dropped filter's batches
+      // follow it to its replacement, and a status change carries down to
+      // every batch in the session. Collected first and written once, so the
+      // two don't overwrite each other.
+      const frameChanges = new Map<string, Frame>()
 
       // Filters only change while the session is planned. Batches that used a
       // filter that was dropped follow it to its replacement.
@@ -92,36 +100,30 @@ export function SessionForm() {
           usedFilterIds,
           replacementOverrides,
         )
-        const remapped = sessionFrames!
-          .filter((f) => f.filterId && !gearIds!.filterIds.includes(f.filterId))
-          .map((f) => {
-            const filterId = remapFilterId(f.filterId, gearIds!.filterIds, replacements)
-            const filterName = filterId ? catalog!.filters.find((x) => x.id === filterId)?.description : undefined
-            return { ...f, filterId, filterName, updatedAt: nowIso() }
-          })
-        if (remapped.length > 0) await bulkPut<Frame>('frames', remapped)
-      }
-
-      // Marking a session as planning means nothing in it has actually been
-      // shot yet, so its frame batches shouldn't claim a further-along
-      // status either - cascade down to keep them consistent. Other status
-      // changes don't cascade: a session moving on doesn't mean every frame
-      // batch in it has too.
-      if (status === 'planning') {
-        const sessionFramesNow = await getWhere<Frame>('frames', 'sessionId', existing.id)
-        const toUpdate = sessionFramesNow.filter((f) => f.status !== 'planning')
-        if (toUpdate.length > 0) {
-          await bulkPut<Frame>(
-            'frames',
-            toUpdate.map((f) => ({ ...f, status: 'planning', updatedAt: nowIso() })),
-          )
+        for (const f of sessionFrames!) {
+          if (!f.filterId || gearIds!.filterIds.includes(f.filterId)) continue
+          const filterId = remapFilterId(f.filterId, gearIds!.filterIds, replacements)
+          const filterName = filterId ? catalog!.filters.find((x) => x.id === filterId)?.description : undefined
+          frameChanges.set(f.id, { ...f, filterId, filterName, updatedAt: nowIso() })
         }
       }
+
+      // Frames the session has moved past come along with it; frames already
+      // further ahead stay put unless the session is moving backward (see
+      // cascadeStatus).
+      const cascading = sessionFrames!.map((f) => frameChanges.get(f.id) ?? f)
+      for (const f of cascadeStatus(cascading, existing.status, status)) frameChanges.set(f.id, f)
+
+      if (frameChanges.size > 0) await bulkPut<Frame>('frames', [...frameChanges.values()])
+
+      // A session that moved ahead may complete the project's next stage.
+      await rollUpProject(projectId!, { put: [saved] })
 
       navigate(`/projects/${projectId}/sessions/${existing.id}`)
     } else {
       const session: Session = { id: newId(), createdAt: nowIso(), ...base }
       await putDoc<Session>('sessions', session)
+      await rollUpProject(projectId!, { put: [session] })
       navigate(`/projects/${projectId}/sessions/${session.id}`)
     }
   }
@@ -131,6 +133,7 @@ export function SessionForm() {
     if (!confirm('Delete this session and all its frames?')) return
     await removeWhere<Frame>('frames', 'sessionId', existing.id)
     await removeDoc('sessions', existing.id)
+    await rollUpProject(projectId!, { removedIds: [existing.id] })
     navigate(`/projects/${projectId}`)
   }
 
@@ -178,11 +181,11 @@ export function SessionForm() {
             <select
               id="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as CaptureStatus)}
+              onChange={(e) => setStatus(e.target.value as Status)}
             >
-              {CAPTURE_STATUSES.map((s) => (
+              {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {CAPTURE_STATUS_LABEL[s]}
+                  {STATUS_LABEL[s]}
                 </option>
               ))}
             </select>

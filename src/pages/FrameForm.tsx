@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, putDoc, removeDoc, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { FRAME_TYPES, CAPTURE_STATUSES, type CaptureStatus, type Frame, type FrameType, type Session } from '../types/models'
-import { FRAME_TYPE_LABEL, CAPTURE_STATUS_LABEL } from '../lib/status'
+import { FRAME_TYPES, STATUSES, type Status, type Frame, type FrameType, type Session } from '../types/models'
+import { FRAME_TYPE_LABEL, STATUS_LABEL } from '../lib/status'
+import { rollUpSession } from '../lib/statusSync'
 import { extractFitsFrameInfo } from '../lib/fitsHeader'
 import { matchFilterCode } from '../lib/asiairFilenameParser'
 import { sessionFilterOptions } from '../lib/gear'
@@ -24,7 +25,7 @@ export function FrameForm() {
   const [offset, setOffset] = useState('')
   const [tempF, setTempF] = useState('')
   const [binning, setBinning] = useState('1x1')
-  const [status, setStatus] = useState<CaptureStatus>('captured')
+  const [status, setStatus] = useState<Status>('planning')
   const [filePathPattern, setFilePathPattern] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -50,10 +51,10 @@ export function FrameForm() {
     setLoaded(true)
   }
 
-  // A new frame batch under a session that's still just planned hasn't been
-  // shot yet either, so it should start out planned too, not "captured".
+  // A new frame batch starts out at its session's status: a planned session
+  // hasn't been shot yet, so neither has its batches.
   if (!isEdit && session && !statusDefaulted) {
-    setStatus(session.status === 'planning' ? 'planning' : 'captured')
+    setStatus(session.status)
     setStatusDefaulted(true)
   }
 
@@ -139,11 +140,16 @@ export function FrameForm() {
       updatedAt: nowIso(),
     }
 
+    const written: Frame[] = []
+
     if (isEdit && existing) {
-      await putDoc<Frame>('frames', { ...existing, ...base })
+      const frame: Frame = { ...existing, ...base }
+      await putDoc<Frame>('frames', frame)
+      written.push(frame)
     } else {
       const frame: Frame = { id: newId(), createdAt: nowIso(), ...base }
       await putDoc<Frame>('frames', frame)
+      written.push(frame)
     }
 
     if (duplicateToFilterIds.length > 0) {
@@ -155,6 +161,7 @@ export function FrameForm() {
         createdAt: nowIso(),
       }))
       await bulkPut<Frame>('frames', duplicates)
+      written.push(...duplicates)
     }
 
     // Flats need their own exposure (usually much shorter, often
@@ -180,7 +187,11 @@ export function FrameForm() {
         createdAt: nowIso(),
       }))
       await bulkPut<Frame>('frames', flats)
+      written.push(...flats)
     }
+
+    // The session advances if every batch in it has now moved past it.
+    await rollUpSession(sessionId!, projectId!, { put: written })
 
     navigate(`/projects/${projectId}/sessions/${sessionId}`)
   }
@@ -189,6 +200,7 @@ export function FrameForm() {
     if (!existing) return
     if (!confirm('Delete this frame batch?')) return
     await removeDoc('frames', existing.id)
+    await rollUpSession(sessionId!, projectId!, { removedIds: [existing.id] })
     navigate(`/projects/${projectId}/sessions/${sessionId}`)
   }
 
@@ -298,11 +310,11 @@ export function FrameForm() {
             <select
               id="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as CaptureStatus)}
+              onChange={(e) => setStatus(e.target.value as Status)}
             >
-              {CAPTURE_STATUSES.map((s) => (
+              {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {CAPTURE_STATUS_LABEL[s]}
+                  {STATUS_LABEL[s]}
                 </option>
               ))}
             </select>

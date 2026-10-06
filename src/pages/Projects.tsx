@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useCollection } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
-import { PROJECT_STATUS_DOT, PROJECT_STATUS_LABEL } from '../lib/status'
+import { STATUS_DOT, STATUS_LABEL } from '../lib/status'
 import type { Project } from '../types/models'
 
 export function Projects() {
@@ -26,8 +26,8 @@ export function Projects() {
             <div className="card-title-row">
               <h3>{project.projectName || project.target}</h3>
               <StatusBadge
-                label={PROJECT_STATUS_LABEL[project.status]}
-                dot={PROJECT_STATUS_DOT[project.status]}
+                label={STATUS_LABEL[project.status]}
+                dot={STATUS_DOT[project.status]}
               />
             </div>
           </div>
