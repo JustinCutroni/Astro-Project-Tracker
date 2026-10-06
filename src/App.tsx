@@ -8,6 +8,7 @@ import { ProjectForm } from './pages/ProjectForm'
 import { ProjectDetail } from './pages/ProjectDetail'
 import { SessionForm } from './pages/SessionForm'
 import { SessionDetail } from './pages/SessionDetail'
+import { CopySession } from './pages/CopySession'
 import { FrameForm } from './pages/FrameForm'
 import { ImportSessionLog } from './pages/ImportSessionLog'
 import { Settings } from './pages/Settings'
@@ -39,6 +40,10 @@ function App() {
           <Route
             path="/projects/:projectId/sessions/:sessionId/import"
             element={<ImportSessionLog />}
+          />
+          <Route
+            path="/projects/:projectId/sessions/:sessionId/copy"
+            element={<CopySession />}
           />
           <Route
             path="/projects/:projectId/sessions/:sessionId/edit"
