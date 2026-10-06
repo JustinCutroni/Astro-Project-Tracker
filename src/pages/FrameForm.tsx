@@ -20,7 +20,7 @@ export function FrameForm() {
   const [frameType, setFrameType] = useState<FrameType>('light')
   const [filterId, setFilterId] = useState('')
   const [count, setCount] = useState(1)
-  const [exposureSeconds, setExposureSeconds] = useState(300)
+  const [exposureSeconds, setExposureSeconds] = useState(180)
   const [gain, setGain] = useState('')
   const [offset, setOffset] = useState('')
   const [tempF, setTempF] = useState('')
