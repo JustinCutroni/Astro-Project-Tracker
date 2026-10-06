@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { GearList } from '../components/GearList'
 import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
 import { daysSince, formatDate, formatMinutes, parseGoalHours, today } from '../lib/format'
@@ -53,6 +54,18 @@ export function ProjectDetail() {
     const minutes = totalExposureSeconds(frame) / 60
     minutesByFilter.set(frame.filterId, (minutesByFilter.get(frame.filterId) || 0) + minutes)
   }
+
+  // One row per filter with light time, in catalog order. A filter that's no
+  // longer in the catalog still gets a row, named from the batches themselves.
+  const filterRows = [
+    ...filters.filter((f) => minutesByFilter.has(f.id)).map((f) => ({ id: f.id, name: f.description })),
+    ...[...minutesByFilter.keys()]
+      .filter((id) => !filters.some((f) => f.id === id))
+      .map((id) => ({
+        id,
+        name: frames.find((fr) => fr.filterId === id)?.filterName ?? 'Unknown filter',
+      })),
+  ].map((row) => ({ ...row, minutes: minutesByFilter.get(row.id)! }))
 
   const plannedFilters = filters.filter((f) => project.filterIds.includes(f.id))
 
@@ -110,48 +123,21 @@ export function ProjectDetail() {
         </div>
       )}
 
-      {(camera || telescope || mount) && (
-        <div className="card">
-          {camera && (
-            <div className="list-item">
-              <span>Camera</span>
-              <span className="muted">
-                {camera.description}
-                {camera.sensorWidthMm && camera.sensorHeightMm
-                  ? ` · ${camera.sensorWidthMm}×${camera.sensorHeightMm}mm`
-                  : ''}
-                {camera.pixelSizeUm ? ` · ${camera.pixelSizeUm}µm pixels` : ''}
-              </span>
-            </div>
-          )}
-          {telescope && (
-            <div className="list-item">
-              <span>Telescope</span>
-              <span className="muted">
-                {telescope.description}
-                {telescope.focalLength ? ` · ${telescope.focalLength}` : ''}
-              </span>
-            </div>
-          )}
-          {mount && (
-            <div className="list-item">
-              <span>Mount</span>
-              <span className="muted">{mount.description}</span>
-            </div>
-          )}
-        </div>
-      )}
+      <GearList
+        camera={camera}
+        telescope={telescope}
+        mount={mount}
+        retiredIds={new Set([camera, telescope, mount].filter((g) => g?.retiredAt).map((g) => g!.id))}
+      />
 
       {minutesByFilter.size > 0 && (
         <div className="card">
-          {filters
-            .filter((f) => minutesByFilter.has(f.id))
-            .map((filter) => (
-              <div className="list-item" key={filter.id}>
-                <span>{filter.description}</span>
-                <span className="muted">{formatMinutes(minutesByFilter.get(filter.id)!)}</span>
-              </div>
-            ))}
+          {filterRows.map((row) => (
+            <div className="list-item" key={row.id}>
+              <span>{row.name}</span>
+              <span className="muted">{formatMinutes(row.minutes)}</span>
+            </div>
+          ))}
         </div>
       )}
 

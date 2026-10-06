@@ -53,6 +53,11 @@ export interface Session {
   status: CaptureStatus
   filePath?: string // where this session's raw files currently live
   notes?: string
+  // The equipment actually used that night, copied in at the time so the
+  // record stays accurate if the catalog entry is later edited, retired or
+  // (for old data) removed. `undefined` means a session logged before this
+  // existed and not yet backfilled; `{}` means "no gear recorded".
+  gear?: SessionGear
   createdAt: string
   updatedAt: string
 }
@@ -64,6 +69,7 @@ export interface Frame {
   projectId: string
   frameType: FrameType
   filterId?: string // not set for bias/some calibration frames
+  filterName?: string // the filter's name when the batch was logged; survives edits/removal
   count: number
   exposureSeconds: number
   gain?: number
@@ -91,6 +97,7 @@ export interface Camera {
   resolutionHeightPx?: number
   sensorType?: 'Mono' | 'Color'
   defaultGain?: number // the manufacturer's published "optimal"/unity gain
+  retiredAt?: string // set when sold/retired: hidden from pickers, kept for history
 }
 
 export interface Telescope {
@@ -98,18 +105,51 @@ export interface Telescope {
   description: string // e.g. "8in RC Telescope"
   focalLength?: string
   dateAdded: string
+  retiredAt?: string
 }
 
 export interface Mount {
   id: string
   description: string
   dateAdded: string
+  retiredAt?: string
 }
 
 export interface FilterDef {
   id: string
   description: string // e.g. "Ha", "L-Extreme"
   dateAdded: string
+  retiredAt?: string
+}
+
+// Gear is never hard-deleted once something refers to it. Retiring (selling,
+// replacing) hides it from pickers but keeps it resolvable for history.
+export interface Retirable {
+  id: string
+  retiredAt?: string
+}
+
+// Point-in-time copies of the gear fields worth showing, stored on a session.
+// They keep the catalog id so a snapshot can still be matched to its entry.
+export type CameraSnapshot = Pick<
+  Camera,
+  | 'id'
+  | 'description'
+  | 'cameraType'
+  | 'sensorWidthMm'
+  | 'sensorHeightMm'
+  | 'pixelSizeUm'
+  | 'resolutionWidthPx'
+  | 'resolutionHeightPx'
+  | 'sensorType'
+>
+export type TelescopeSnapshot = Pick<Telescope, 'id' | 'description' | 'focalLength'>
+export type MountSnapshot = Pick<Mount, 'id' | 'description'>
+
+export interface SessionGear {
+  camera?: CameraSnapshot
+  telescope?: TelescopeSnapshot
+  mount?: MountSnapshot
 }
 
 export interface Location {

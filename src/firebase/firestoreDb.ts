@@ -3,6 +3,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  getDocsFromServer,
   onSnapshot,
   query,
   setDoc,
@@ -39,7 +40,12 @@ function colRef(name: CollectionName) {
 function stripUndefined<T extends object>(obj: T): T {
   const result = {} as T
   for (const key of Object.keys(obj) as (keyof T)[]) {
-    if (obj[key] !== undefined) result[key] = obj[key]
+    const value = obj[key]
+    if (value === undefined) continue
+    // Nested plain objects (e.g. a session's gear snapshot) need the same
+    // treatment; arrays and class instances (Timestamps etc.) pass through.
+    const isPlainObject = typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype
+    result[key] = isPlainObject ? stripUndefined(value as object) as T[keyof T] : value
   }
   return result
 }
@@ -115,6 +121,14 @@ export async function getAll<T>(name: CollectionName): Promise<T[]> {
   return snap.docs.map((d) => d.data() as T)
 }
 
+// Authoritative read for one-time migrations: bypasses the local cache, which
+// can be partial, and throws while offline so the caller can simply retry on
+// the next launch instead of acting on incomplete data.
+export async function getAllFromServer<T>(name: CollectionName): Promise<T[]> {
+  const snap = await getDocsFromServer(colRef(name))
+  return snap.docs.map((d) => d.data() as T)
+}
+
 export async function getWhere<T>(
   name: CollectionName,
   field: keyof T & string,
@@ -154,6 +168,23 @@ export async function bulkPut<T extends { id: string }>(
   const batch = writeBatch(firestore)
   for (const item of items) batch.set(doc(colRef(name), item.id), stripUndefined(item))
   return fireAndForget(batch.commit(), `bulkPut(${name})`)
+}
+
+// Merges just the given fields into existing documents (leaving every other
+// field alone, unlike putDoc which replaces the whole document), in batches
+// under Firestore's 500-writes-per-batch limit.
+export async function bulkMerge(
+  name: CollectionName,
+  items: ({ id: string } & Record<string, unknown>)[],
+): Promise<void> {
+  const BATCH_SIZE = 400
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = writeBatch(firestore)
+    for (const item of items.slice(i, i + BATCH_SIZE)) {
+      batch.set(doc(colRef(name), item.id), stripUndefined(item), { merge: true })
+    }
+    await fireAndForget(batch.commit(), `bulkMerge(${name})`)
+  }
 }
 
 export async function bulkRemove(name: CollectionName, ids: string[]): Promise<void> {

@@ -15,6 +15,7 @@ import { PROJECT_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { formatTarget, searchTargets } from '../lib/targetSearch'
 import { sortFilters } from '../lib/filters'
+import { optionLabel, selectable } from '../lib/gear'
 
 function byDescription<T extends { description: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.description.localeCompare(b.description))
@@ -65,10 +66,11 @@ export function ProjectForm() {
   if (isEdit && !existing) return null
   if (!camerasRaw || !telescopesRaw || !mountsRaw || !filtersRaw) return null
 
-  const cameras = byDescription(camerasRaw)
-  const telescopes = byDescription(telescopesRaw)
-  const mounts = byDescription(mountsRaw)
-  const filters = sortFilters(filtersRaw)
+  // Retired gear is hidden unless this project already uses it.
+  const cameras = byDescription(selectable(camerasRaw, [cameraId]))
+  const telescopes = byDescription(selectable(telescopesRaw, [telescopeId]))
+  const mounts = byDescription(selectable(mountsRaw, [mountId]))
+  const filters = sortFilters(selectable(filtersRaw, filterIds))
 
   function toggleFilter(id: string) {
     setFilterIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]))
@@ -212,7 +214,7 @@ export function ProjectForm() {
               <option value="">Not set</option>
               {cameras.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.description}
+                  {optionLabel(c)}
                 </option>
               ))}
             </select>
@@ -227,7 +229,7 @@ export function ProjectForm() {
               <option value="">Not set</option>
               {telescopes.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.description}
+                  {optionLabel(t)}
                 </option>
               ))}
             </select>
@@ -238,7 +240,7 @@ export function ProjectForm() {
               <option value="">Not set</option>
               {mounts.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.description}
+                  {optionLabel(m)}
                 </option>
               ))}
             </select>
@@ -251,7 +253,7 @@ export function ProjectForm() {
             <div className="card">
               {filters.map((f) => (
                 <label key={f.id} className="list-item" style={{ cursor: 'pointer' }}>
-                  <span>{f.description}</span>
+                  <span>{optionLabel(f)}</span>
                   <input
                     type="checkbox"
                     checked={filterIds.includes(f.id)}

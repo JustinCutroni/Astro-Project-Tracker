@@ -61,3 +61,24 @@ export function IconEdit({ size = 18 }: IconProps) {
     </svg>
   )
 }
+
+// Box with a lid: "retire / archive" - the item stays on record, just out of use.
+export function IconArchive({ size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="4.5" width="17" height="4" rx="1" />
+      <path d="M5 8.5V19h14V8.5" />
+      <path d="M10 12.5h4" />
+    </svg>
+  )
+}
+
+// Counter-clockwise arrow: bring a retired item back into service.
+export function IconRestore({ size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12a8 8 0 1 0 2.6-5.9" />
+      <path d="M4 4v4.5h4.5" />
+    </svg>
+  )
+}

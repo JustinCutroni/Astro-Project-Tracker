@@ -5,7 +5,9 @@ import { newId, nowIso } from '../lib/ids'
 import { today } from '../lib/format'
 import { sortFilters } from '../lib/filters'
 import { useKnownLocations } from '../lib/locations'
-import type { FilterDef, Frame, Session } from '../types/models'
+import { buildSessionGear, defaultGearIds, idsFromGear, useGearCatalog, type GearIds } from '../lib/gear'
+import { GearFields } from '../components/GearFields'
+import type { FilterDef, Frame, Project, Session } from '../types/models'
 
 const DEFAULT_FLAT_COUNT = 20
 
@@ -20,6 +22,8 @@ export function CopySession() {
   const source = useDocument<Session>('sessions', sessionId)
   const sourceFrames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
   const filtersRaw = useCollection<FilterDef>('filters')
+  const project = useDocument<Project>('projects', projectId)
+  const catalog = useGearCatalog()
   const knownLocations = useKnownLocations()
 
   const [date, setDate] = useState(today())
@@ -28,6 +32,15 @@ export function CopySession() {
   const [notes, setNotes] = useState('')
   const [flatCount, setFlatCount] = useState(DEFAULT_FLAT_COUNT)
   const [loaded, setLoaded] = useState(false)
+  // Starts from the gear the source session used, falling back to the project's,
+  // skipping anything retired since.
+  const [gearIds, setGearIds] = useState<GearIds | null>(null)
+
+  if (gearIds === null && source && project && catalog) {
+    setGearIds(
+      defaultGearIds(catalog.cameras, catalog.telescopes, catalog.mounts, idsFromGear(source.gear), project),
+    )
+  }
 
   if (source && !loaded) {
     setLocation(source.location || '')
@@ -36,11 +49,12 @@ export function CopySession() {
     setLoaded(true)
   }
 
-  if (!source || !sourceFrames || !filtersRaw || !projectId) return null
+  if (!source || !sourceFrames || !filtersRaw || !projectId || !catalog || !gearIds) return null
 
   const frames = sourceFrames
   const filters = sortFilters(filtersRaw)
-  const filterName = (id: string) => filters.find((f) => f.id === id)?.description ?? 'Unknown'
+  const liveFilterName = (id: string | undefined) => filters.find((f) => f.id === id)?.description
+  const filterName = (id: string) => liveFilterName(id) ?? 'Unknown'
 
   const hadFlatDarks = frames.some((f) => f.frameType === 'flat-dark')
   const lights = frames.filter((f) => f.frameType === 'light')
@@ -69,6 +83,9 @@ export function CopySession() {
       status: 'planning',
       filePath: filePath.trim() || undefined,
       notes: notes.trim() || undefined,
+      // Fresh snapshot from the catalog: this is tonight's gear, not a copy of
+      // last night's record.
+      gear: buildSessionGear(gearIds!, catalog!.cameras, catalog!.telescopes, catalog!.mounts),
       createdAt: nowIso(),
       updatedAt: nowIso(),
     }
@@ -78,6 +95,7 @@ export function CopySession() {
       ...f,
       id: newId(),
       sessionId: newSession.id,
+      filterName: f.filterId ? (liveFilterName(f.filterId) ?? f.filterName) : undefined,
       status: 'planning',
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -91,6 +109,7 @@ export function CopySession() {
         projectId: source.projectId,
         frameType: 'flat',
         filterId,
+        filterName: liveFilterName(filterId) ?? light.filterName,
         count: flatCount,
         exposureSeconds: flatExposureFor(filterId),
         gain: light.gain,
@@ -151,6 +170,8 @@ export function CopySession() {
             </datalist>
           </div>
         </div>
+
+        <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} />
 
         <div className="form-field">
           <label htmlFor="filePath">File path</label>

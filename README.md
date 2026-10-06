@@ -40,7 +40,8 @@ so the two can be reconciled or synced later without another reshape:
   and frames with it.
 - **Cameras / Telescopes / Mounts / Filters / Locations** — manage your own
   gear, filter list, and imaging locations under Settings, so project and
-  session setup is just picking from them. A camera can also carry its
+  session setup is just picking from them. See **Gear and history** below for
+  what happens when you sell or replace something. A camera can also carry its
   manufacturer-published default/optimal gain, prefilled for known catalog
   models, which then prefills new frame batches under that project.
 - Automatic **integration-time totals** (Light frames only — calibration
@@ -49,6 +50,28 @@ so the two can be reconciled or synced later without another reshape:
   project also shows days since its last capture and a progress bar toward
   its goal hours (again, Light frames only), so you can see what's stalled
   and what's close to done at a glance.
+
+## Gear and history
+
+Selling or replacing gear must never rewrite your past work, so:
+
+- **Retire, don't delete.** In Settings, the archive button on a camera,
+  telescope, mount or filter *retires* it: it disappears from every picker
+  (and from auto-matching on log import) but stays on record. Retired gear
+  sits behind a "Show retired" toggle and can be restored. The delete button
+  only appears for gear that nothing uses.
+- **Every session records its own gear.** A session stores the camera,
+  telescope and mount used that night, copied in when the session is saved
+  (new sessions start from the project's gear, Copy session from the source
+  session's), and each frame batch stores its filter's name. Renaming or
+  editing a catalog entry later doesn't change what an old session says it
+  used. Gear a session already uses stays selectable (marked "retired") when
+  you edit it.
+- **Older sessions are backfilled once.** The first launch after this
+  shipped stamps existing sessions with a snapshot of their project's
+  current camera/telescope/mount and fills in frame filter names. It's the
+  best reconstruction available - a project's gear is the only record of what
+  an old session used - and gear deleted before this can't be recovered.
 
 ## Tonight, at a glance
 

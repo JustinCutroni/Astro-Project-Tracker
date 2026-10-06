@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { putDoc, removeDoc, useCollection } from '../firebase/firestoreDb'
+import { putDoc, removeDoc, useCollection, type CollectionName } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { IconClose, IconEdit } from '../components/icons'
+import { IconArchive, IconClose, IconEdit, IconRestore } from '../components/icons'
 import { findCameraSpec, searchCameraCatalog, type CameraSpec } from '../data/cameraCatalog'
 import { findTelescopeSpec, searchTelescopeCatalog, type TelescopeSpec } from '../data/telescopeCatalog'
 import { searchMountCatalog } from '../data/mountCatalog'
-import type { Camera, FilterDef, Location, Mount, Telescope } from '../types/models'
+import type { Camera, FilterDef, Location, Mount, Retirable, Telescope } from '../types/models'
 import { signOutUser, useAuthUser } from '../firebase/auth'
 import { sortFilters } from '../lib/filters'
+import { useGearUsage } from '../lib/gear'
+import { formatDate } from '../lib/format'
 
 function byDescription<T extends { description: string }>(items: T[] | undefined): T[] | undefined {
   return items && [...items].sort((a, b) => a.description.localeCompare(b.description))
@@ -84,6 +86,8 @@ function FormActions({ editing, onCancel }: { editing: boolean; onCancel: () => 
   )
 }
 
+// Locations are plain free-text suggestions, so they keep the simple
+// edit/remove pair.
 function RowButtons({ onEdit, onRemove }: { onEdit: () => void; onRemove: () => void }) {
   return (
     <span style={{ display: 'flex', gap: '0.25rem' }}>
@@ -94,6 +98,100 @@ function RowButtons({ onEdit, onRemove }: { onEdit: () => void; onRemove: () => 
         <IconClose />
       </button>
     </span>
+  )
+}
+
+async function setRetired<T extends Retirable>(name: CollectionName, item: T, retired: boolean) {
+  // putDoc replaces the whole document, and drops undefined fields, so
+  // restoring just removes `retiredAt`.
+  await putDoc(name, { ...item, retiredAt: retired ? new Date().toISOString() : undefined })
+}
+
+// The list card shared by the gear tabs (cameras, telescopes, mounts,
+// filters). Gear that anything refers to can only be retired - hidden from
+// pickers but kept so history still resolves - and is deletable only while
+// nothing uses it. Retired gear is tucked behind a toggle and can be restored.
+function CatalogList<T extends Retirable>({
+  name,
+  items,
+  usage,
+  emptyText,
+  renderItem,
+  onEdit,
+}: {
+  name: CollectionName
+  items: T[]
+  usage: Map<string, number> | undefined
+  emptyText: string
+  renderItem: (item: T) => React.ReactNode
+  onEdit: (item: T) => void
+}) {
+  const [showRetired, setShowRetired] = useState(false)
+  const active = items.filter((i) => !i.retiredAt)
+  const retired = items.filter((i) => i.retiredAt)
+  const visible = showRetired ? [...active, ...retired] : active
+
+  return (
+    <div className="card">
+      {items.length === 0 && <div className="muted">{emptyText}</div>}
+      {items.length > 0 && visible.length === 0 && (
+        <div className="muted">Everything here is retired.</div>
+      )}
+      {visible.map((item) => {
+        const isRetired = Boolean(item.retiredAt)
+        // Unknown usage (still loading) is treated as "in use" - never offer a
+        // delete we can't yet vouch for.
+        const canDelete = usage !== undefined && !usage.get(item.id)
+        return (
+          <div className="list-item" key={item.id} style={isRetired ? { opacity: 0.6 } : undefined}>
+            <span>
+              {renderItem(item)}
+              {isRetired && <span className="muted"> · retired {formatDate(item.retiredAt!)}</span>}
+            </span>
+            <span style={{ display: 'flex', gap: '0.25rem' }}>
+              <button className="icon-btn" onClick={() => onEdit(item)} aria-label="Edit">
+                <IconEdit />
+              </button>
+              <button
+                className="icon-btn"
+                onClick={() => setRetired(name, item, !isRetired)}
+                aria-label={isRetired ? 'Restore' : 'Retire'}
+                title={
+                  isRetired
+                    ? 'Restore - offer it in pickers again'
+                    : 'Retire - hide it from pickers but keep it in your history'
+                }
+              >
+                {isRetired ? <IconRestore /> : <IconArchive />}
+              </button>
+              {canDelete && (
+                <button
+                  className="icon-btn"
+                  onClick={() => removeDoc(name, item.id)}
+                  aria-label="Delete"
+                  title="Delete - nothing uses this"
+                >
+                  <IconClose />
+                </button>
+              )}
+            </span>
+          </div>
+        )
+      })}
+      {retired.length > 0 && (
+        <div className="list-item">
+          <button type="button" className="btn btn-sm" onClick={() => setShowRetired((v) => !v)}>
+            {showRetired ? 'Hide' : 'Show'} retired ({retired.length})
+          </button>
+        </div>
+      )}
+      {items.length > 0 && (
+        <div className="muted" style={{ fontSize: '0.78rem', paddingTop: '0.5rem' }}>
+          Retire gear you no longer use or have sold. Anything used in a project, session or frame
+          can only be retired, so your history stays intact.
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -114,6 +212,7 @@ function Suggestions({ items, onPick }: { items: string[]; onPick: (i: number) =
 
 function CamerasTab() {
   const cameras = byDescription(useCollection<Camera>('cameras'))
+  const usage = useGearUsage()
   const [editing, setEditing] = useState<Camera | null>(null)
   const [description, setDescription] = useState('')
   const [cameraType, setCameraType] = useState('')
@@ -191,37 +290,34 @@ function CamerasTab() {
     reset()
   }
 
-  async function remove(id: string) {
-    await removeDoc('cameras', id)
-  }
-
   if (!cameras) return null
 
   return (
     <div>
-      <div className="card">
-        {cameras.length === 0 && <div className="muted">No cameras added yet.</div>}
-        {cameras.map((c) => (
-          <div className="list-item" key={c.id}>
-            <span>
-              {c.description} {c.cameraType && <span className="muted">({c.cameraType})</span>}
-              {(c.sensorWidthMm || c.defaultGain !== undefined) && (
-                <div className="muted" style={{ fontSize: '0.78rem' }}>
-                  {c.sensorWidthMm && c.pixelSizeUm && (
-                    <>
-                      {c.sensorWidthMm} &times; {c.sensorHeightMm}mm &middot; {c.pixelSizeUm}
-                      {'µ'}m pixels
-                      {c.resolutionWidthPx && ` · ${c.resolutionWidthPx}×${c.resolutionHeightPx}`}
-                    </>
-                  )}
-                  {c.defaultGain !== undefined && ` · Default gain ${c.defaultGain}`}
-                </div>
-              )}
-            </span>
-            <RowButtons onEdit={() => startEdit(c)} onRemove={() => remove(c.id)} />
-          </div>
-        ))}
-      </div>
+      <CatalogList
+        name="cameras"
+        items={cameras}
+        usage={usage}
+        emptyText="No cameras added yet."
+        onEdit={startEdit}
+        renderItem={(c) => (
+          <>
+            {c.description} {c.cameraType && <span className="muted">({c.cameraType})</span>}
+            {(c.sensorWidthMm || c.defaultGain !== undefined) && (
+              <div className="muted" style={{ fontSize: '0.78rem' }}>
+                {c.sensorWidthMm && c.pixelSizeUm && (
+                  <>
+                    {c.sensorWidthMm} &times; {c.sensorHeightMm}mm &middot; {c.pixelSizeUm}
+                    {'µ'}m pixels
+                    {c.resolutionWidthPx && ` · ${c.resolutionWidthPx}×${c.resolutionHeightPx}`}
+                  </>
+                )}
+                {c.defaultGain !== undefined && ` · Default gain ${c.defaultGain}`}
+              </div>
+            )}
+          </>
+        )}
+      />
       <form onSubmit={add}>
         <div className="form-row">
           <div className="form-field autocomplete-wrap">
@@ -334,6 +430,7 @@ function CamerasTab() {
 
 function TelescopesTab() {
   const telescopes = byDescription(useCollection<Telescope>('telescopes'))
+  const usage = useGearUsage()
   const [editing, setEditing] = useState<Telescope | null>(null)
   const [description, setDescription] = useState('')
   const [focalLength, setFocalLength] = useState('')
@@ -380,25 +477,22 @@ function TelescopesTab() {
     reset()
   }
 
-  async function remove(id: string) {
-    await removeDoc('telescopes', id)
-  }
-
   if (!telescopes) return null
 
   return (
     <div>
-      <div className="card">
-        {telescopes.length === 0 && <div className="muted">No telescopes added yet.</div>}
-        {telescopes.map((t) => (
-          <div className="list-item" key={t.id}>
-            <span>
-              {t.description} {t.focalLength && <span className="muted">({t.focalLength}mm)</span>}
-            </span>
-            <RowButtons onEdit={() => startEdit(t)} onRemove={() => remove(t.id)} />
-          </div>
-        ))}
-      </div>
+      <CatalogList
+        name="telescopes"
+        items={telescopes}
+        usage={usage}
+        emptyText="No telescopes added yet."
+        onEdit={startEdit}
+        renderItem={(t) => (
+          <>
+            {t.description} {t.focalLength && <span className="muted">({t.focalLength}mm)</span>}
+          </>
+        )}
+      />
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
         <div className="form-field autocomplete-wrap">
           <label>Description</label>
@@ -434,6 +528,7 @@ function TelescopesTab() {
 
 function MountsTab() {
   const mounts = byDescription(useCollection<Mount>('mounts'))
+  const usage = useGearUsage()
   const [editing, setEditing] = useState<Mount | null>(null)
   const [description, setDescription] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -462,23 +557,18 @@ function MountsTab() {
     reset()
   }
 
-  async function remove(id: string) {
-    await removeDoc('mounts', id)
-  }
-
   if (!mounts) return null
 
   return (
     <div>
-      <div className="card">
-        {mounts.length === 0 && <div className="muted">No mounts added yet.</div>}
-        {mounts.map((m) => (
-          <div className="list-item" key={m.id}>
-            <span>{m.description}</span>
-            <RowButtons onEdit={() => startEdit(m)} onRemove={() => remove(m.id)} />
-          </div>
-        ))}
-      </div>
+      <CatalogList
+        name="mounts"
+        items={mounts}
+        usage={usage}
+        emptyText="No mounts added yet."
+        onEdit={startEdit}
+        renderItem={(m) => m.description}
+      />
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
         <div className="form-field autocomplete-wrap">
           <label>Description</label>
@@ -506,6 +596,7 @@ function MountsTab() {
 
 function FiltersTab() {
   const filters = sortedFilters(useCollection<FilterDef>('filters'))
+  const usage = useGearUsage()
   const [editing, setEditing] = useState<FilterDef | null>(null)
   const [description, setDescription] = useState('')
 
@@ -526,29 +617,21 @@ function FiltersTab() {
     reset()
   }
 
-  async function remove(id: string) {
-    await removeDoc('filters', id)
-  }
-
   if (!filters) return null
 
   return (
     <div>
-      <div className="card">
-        {filters.length === 0 && <div className="muted">No filters added yet.</div>}
-        {filters.map((f) => (
-          <div className="list-item" key={f.id}>
-            <span>{f.description}</span>
-            <RowButtons
-              onEdit={() => {
-                setEditing(f)
-                setDescription(f.description)
-              }}
-              onRemove={() => remove(f.id)}
-            />
-          </div>
-        ))}
-      </div>
+      <CatalogList
+        name="filters"
+        items={filters}
+        usage={usage}
+        emptyText="No filters added yet."
+        onEdit={(f) => {
+          setEditing(f)
+          setDescription(f.description)
+        }}
+        renderItem={(f) => f.description}
+      />
       <form onSubmit={add} className="form-row" style={{ alignItems: 'flex-end' }}>
         <div className="form-field">
           <label>Description</label>

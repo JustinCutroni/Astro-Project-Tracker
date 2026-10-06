@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, getWhere, putDoc, removeDoc, removeWhere, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Session } from '../types/models'
+import { CAPTURE_STATUSES, type CaptureStatus, type Frame, type Project, type Session } from '../types/models'
 import { CAPTURE_STATUS_LABEL } from '../lib/status'
 import { useKnownLocations } from '../lib/locations'
 import { today } from '../lib/format'
+import { buildSessionGear, defaultGearIds, idsFromGear, useGearCatalog, type GearIds } from '../lib/gear'
+import { GearFields } from '../components/GearFields'
 
 export function SessionForm() {
   const { projectId, sessionId } = useParams()
@@ -13,6 +15,8 @@ export function SessionForm() {
   const isEdit = Boolean(sessionId)
 
   const existing = useDocument<Session>('sessions', sessionId)
+  const project = useDocument<Project>('projects', projectId)
+  const catalog = useGearCatalog()
   const knownLocations = useKnownLocations()
 
   const [date, setDate] = useState(today())
@@ -21,6 +25,22 @@ export function SessionForm() {
   const [filePath, setFilePath] = useState('')
   const [notes, setNotes] = useState('')
   const [loaded, setLoaded] = useState(false)
+  // null until initialised: a new session starts from the project's gear that's
+  // still in service; an existing one from what it recorded.
+  const [gearIds, setGearIds] = useState<GearIds | null>(null)
+
+  if (gearIds === null && catalog && project && (!isEdit || existing)) {
+    if (existing?.gear) setGearIds(idsFromGear(existing.gear))
+    else if (existing)
+      // Logged before sessions kept their own gear (and not backfilled yet):
+      // the project's gear is the best record, retired or not.
+      setGearIds({
+        cameraId: project.cameraId ?? '',
+        telescopeId: project.telescopeId ?? '',
+        mountId: project.mountId ?? '',
+      })
+    else setGearIds(defaultGearIds(catalog.cameras, catalog.telescopes, catalog.mounts, project))
+  }
 
   if (isEdit && existing && !loaded) {
     setDate(existing.date)
@@ -32,7 +52,7 @@ export function SessionForm() {
   }
 
   if (isEdit && !existing) return null
-  if (!projectId) return null
+  if (!projectId || !catalog || !gearIds) return null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,6 +64,7 @@ export function SessionForm() {
       status,
       filePath: filePath.trim() || undefined,
       notes: notes.trim() || undefined,
+      gear: buildSessionGear(gearIds!, catalog!.cameras, catalog!.telescopes, catalog!.mounts, existing?.gear),
       updatedAt: nowIso(),
     }
 
@@ -145,6 +166,8 @@ export function SessionForm() {
             />
           </div>
         </div>
+
+        <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} />
 
         <div className="form-field">
           <label htmlFor="notes">Notes</label>
