@@ -2,9 +2,15 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCollection } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
-import { daysSince, formatMinutes, parseGoalHours, relativeDayLabel, today } from '../lib/format'
+import { daysSince, formatMinutes, relativeDayLabel, today } from '../lib/format'
 import { STATUS_DOT, STATUS_LABEL } from '../lib/status'
-import { integrationMinutesForFrames, type Frame, type Project, type Session } from '../types/models'
+import {
+  integrationMinutesForFrames,
+  plannedIntegrationMinutesForFrames,
+  type Frame,
+  type Project,
+  type Session,
+} from '../types/models'
 
 export function Dashboard() {
   const navigate = useNavigate()
@@ -165,10 +171,11 @@ export function Dashboard() {
           .at(-1)
         const projectFrames = frames.filter((f) => f.projectId === project.id)
         const capturedMinutes = integrationMinutesForFrames(projectFrames)
-        const goalHours = parseGoalHours(project.goalHours)
-        const percentDone = goalHours
-          ? Math.min(100, Math.round((capturedMinutes / 60 / goalHours) * 100))
-          : undefined
+        const plannedMinutes = plannedIntegrationMinutesForFrames(projectFrames)
+        const percentDone =
+          plannedMinutes > 0
+            ? Math.min(100, Math.round((capturedMinutes / plannedMinutes) * 100))
+            : undefined
 
         return (
           <Link to={`/projects/${project.id}`} className="card-link" key={project.id}>
@@ -186,8 +193,7 @@ export function Dashboard() {
                   : 'No sessions yet'}
               </div>
               <div className="muted" style={{ marginTop: '0.4rem' }}>
-                {formatMinutes(capturedMinutes)}
-                {goalHours ? ` / ${project.goalHours}h` : ''} light integration
+                {formatMinutes(capturedMinutes)} captured / {formatMinutes(plannedMinutes)} planned
                 {percentDone !== undefined ? ` · ${percentDone}%` : ''}
               </div>
               {percentDone !== undefined && (
