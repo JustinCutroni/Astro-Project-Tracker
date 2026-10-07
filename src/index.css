@@ -566,3 +566,53 @@ a.list-item {
   overflow-y: auto;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
+
+/* Settings page */
+.settings-account {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-form {
+  margin-bottom: 1rem;
+}
+
+.form-row-end {
+  align-items: flex-end;
+}
+
+.form-row-tight {
+  gap: 0.4rem;
+}
+
+.form-row > .field-narrow {
+  flex: 0 0 7rem;
+}
+
+.form-row > .field-pixel {
+  flex: 0 0 6rem;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.list-item-retired {
+  opacity: 0.6;
+}
+
+.spec-summary {
+  font-size: 0.78rem;
+}
+
+.catalog-hint {
+  font-size: 0.78rem;
+  padding-top: 0.5rem;
+}
