@@ -41,7 +41,7 @@ export function ProjectDetail() {
 
   const minutesByFilter = new Map<string, number>()
   for (const frame of frames) {
-    if (frame.frameType !== 'light' || !frame.filterId) continue
+    if (frame.frameType !== 'light' || frame.status === 'planning' || !frame.filterId) continue
     const minutes = totalExposureSeconds(frame) / 60
     minutesByFilter.set(frame.filterId, (minutesByFilter.get(frame.filterId) || 0) + minutes)
   }
