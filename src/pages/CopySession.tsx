@@ -4,6 +4,7 @@ import { bulkPut, putDoc, useCollection, useDocument } from '../firebase/firesto
 import { newId, nowIso } from '../lib/ids'
 import { today } from '../lib/format'
 import { sortFilters } from '../lib/filters'
+import { flatDarkFor } from '../lib/flatDarks'
 import { useKnownLocations } from '../lib/locations'
 import {
   buildSessionGear,
@@ -22,7 +23,7 @@ const DEFAULT_FLAT_COUNT = 20
 // Copies a session for the next night on the same target. Light frames (and
 // any darks/bias) carry over as-is; flats are session-specific, so they are
 // never copied - instead every filter used by a light batch gets a fresh flat
-// batch for the new session.
+// batch, and a matching flat dark batch, for the new session.
 export function CopySession() {
   const { projectId, sessionId } = useParams()
   const navigate = useNavigate()
@@ -69,7 +70,6 @@ export function CopySession() {
   // A source batch's filter as it will be on the new session.
   const mapFilter = (id: string | undefined) => remapFilterId(id, gearIds.filterIds, replacements)
 
-  const hadFlatDarks = frames.some((f) => f.frameType === 'flat-dark')
   const lights = frames.filter((f) => f.frameType === 'light')
   // Darks/bias aren't tied to a night's sky, so they come along unchanged.
   const otherCarryOver = frames.filter((f) => f.frameType === 'dark' || f.frameType === 'bias')
@@ -142,18 +142,16 @@ export function CopySession() {
       }
     })
 
-    // Flat darks must match their flats' exposure, so they're rebuilt from the
-    // new flats (one per filter) - but only if the original session used them.
-    const flatDarks: Frame[] = hadFlatDarks
-      ? flats.map((flat) => ({
-          ...flat,
-          id: newId(),
-          frameType: 'flat-dark',
-          count:
-            frames.find((f) => f.frameType === 'flat-dark' && mapFilter(f.filterId) === flat.filterId)?.count ??
-            flatCount,
-        }))
-      : []
+    // Every flat needs a flat dark at the same exposure, so they're always
+    // built from the new flats (one per filter). The original's flat dark
+    // count is reused when it had one.
+    const flatDarks: Frame[] = flats.map((flat) =>
+      flatDarkFor(
+        flat,
+        frames.find((f) => f.frameType === 'flat-dark' && mapFilter(f.filterId) === flat.filterId)?.count ??
+          flatCount,
+      ),
+    )
 
     const all = [...copied, ...flats, ...flatDarks]
     if (all.length > 0) await bulkPut<Frame>('frames', all)
@@ -240,7 +238,7 @@ export function CopySession() {
               never copied from the original - each session gets its own. Exposure is reused
               from the original session&rsquo;s flat for that filter, or left at 0 to fill in
               later.
-              {hadFlatDarks && ' Matching flat darks are recreated too.'}
+              {' '}Matching flat darks are created for each flat too.
             </div>
           ) : (
             <div className="muted">No filtered light frames in this session, so no flats will be created.</div>
