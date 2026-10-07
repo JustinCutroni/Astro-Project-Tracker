@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { bulkPut, putDoc, removeDoc, useDocument } from '../firebase/firestoreDb'
+import { bulkPut, getWhere, putDoc, removeDoc, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
 import { FRAME_TYPES, STATUSES, type Status, type Frame, type FrameType, type Session } from '../types/models'
 import { FRAME_TYPE_LABEL, STATUS_LABEL } from '../lib/status'
@@ -8,7 +8,7 @@ import { rollUpSession } from '../lib/statusSync'
 import { extractFitsFrameInfo } from '../lib/fitsHeader'
 import { matchFilterCode } from '../lib/asiairFilenameParser'
 import { sessionFilterOptions } from '../lib/gear'
-import { flatDarkFor } from '../lib/flatDarks'
+import { flatDarkFor, flatDarksToResync } from '../lib/flatDarks'
 
 export function FrameForm() {
   const { projectId, sessionId, frameId } = useParams()
@@ -147,6 +147,13 @@ export function FrameForm() {
       const frame: Frame = { ...existing, ...base }
       await putDoc<Frame>('frames', frame)
       written.push(frame)
+
+      const siblings = await getWhere<Frame>('frames', 'sessionId', sessionId!)
+      const resynced = flatDarksToResync(existing, frame, siblings)
+      if (resynced.length > 0) {
+        await bulkPut<Frame>('frames', resynced)
+        written.push(...resynced)
+      }
     } else {
       const frame: Frame = { id: newId(), createdAt: nowIso(), ...base }
       await putDoc<Frame>('frames', frame)
