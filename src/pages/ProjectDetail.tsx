@@ -1,13 +1,14 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { StatusBadge } from '../components/StatusBadge'
-import { daysSince, formatDate, formatMinutes, parseGoalHours, today } from '../lib/format'
+import { daysSince, formatDate, formatMinutes, today } from '../lib/format'
 import {
   STATUS_DOT,
   STATUS_LABEL,
 } from '../lib/status'
 import {
   integrationMinutesForFrames,
+  plannedIntegrationMinutesForFrames,
   totalExposureSeconds,
   type FilterDef,
   type Frame,
@@ -34,14 +35,13 @@ export function ProjectDetail() {
   // for next week isn't one yet, and would otherwise show a negative
   // "days since".
   const lastCaptureDate = sortedSessions.find((s) => s.date <= today())?.date
-  const goalHours = parseGoalHours(project.goalHours)
-  const percentDone = goalHours
-    ? Math.min(100, Math.round((totalMinutes / 60 / goalHours) * 100))
-    : undefined
+  const plannedMinutes = plannedIntegrationMinutesForFrames(frames)
+  const percentDone =
+    plannedMinutes > 0 ? Math.min(100, Math.round((totalMinutes / plannedMinutes) * 100)) : undefined
 
   const minutesByFilter = new Map<string, number>()
   for (const frame of frames) {
-    if (frame.frameType !== 'light' || !frame.filterId) continue
+    if (frame.frameType !== 'light' || frame.status === 'planning' || !frame.filterId) continue
     const minutes = totalExposureSeconds(frame) / 60
     minutesByFilter.set(frame.filterId, (minutesByFilter.get(frame.filterId) || 0) + minutes)
   }
@@ -89,8 +89,10 @@ export function ProjectDetail() {
           <div className="label">Sessions</div>
         </div>
         <div className="stat-box">
-          <div className="value">{formatMinutes(totalMinutes)}</div>
-          <div className="label">Total integration{project.goalHours ? ` / ${project.goalHours}h goal` : ''}</div>
+          <div className="value">
+            {formatMinutes(totalMinutes)} / {formatMinutes(plannedMinutes)}
+          </div>
+          <div className="label">Captured / planned integration</div>
         </div>
       </div>
 
@@ -98,7 +100,7 @@ export function ProjectDetail() {
         {lastCaptureDate
           ? `${daysSince(lastCaptureDate)} day${daysSince(lastCaptureDate) === 1 ? '' : 's'} since last capture`
           : 'No sessions yet'}
-        {percentDone !== undefined && ` · ${percentDone}% of light integration goal`}
+        {percentDone !== undefined && ` · ${percentDone}% of planned light integration captured`}
       </div>
       {percentDone !== undefined && (
         <div className="progress-track" style={{ marginBottom: '0.75rem' }}>

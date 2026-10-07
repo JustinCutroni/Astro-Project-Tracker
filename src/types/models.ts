@@ -148,8 +148,19 @@ export function totalExposureSeconds(frame: Pick<Frame, 'count' | 'exposureSecon
 }
 
 // Only Light frames represent integration time on the target; calibration
-// frames (Dark/Flat/Flat Dark/Bias) don't count toward it.
+// frames (Dark/Flat/Flat Dark/Bias) don't count toward it. Batches still in
+// 'planning' haven't been captured yet, so they don't count either.
 export function integrationMinutesForFrames(frames: Frame[]): number {
+  return lightMinutes(frames.filter((f) => f.status !== 'planning'))
+}
+
+// The whole plan: every light batch, captured or not. Captured time is a
+// subset of this, so captured / planned is how far along the plan is.
+export function plannedIntegrationMinutesForFrames(frames: Frame[]): number {
+  return lightMinutes(frames)
+}
+
+function lightMinutes(frames: Frame[]): number {
   return (
     frames
       .filter((f) => f.frameType === 'light')
