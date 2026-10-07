@@ -8,6 +8,7 @@ import { rollUpSession } from '../lib/statusSync'
 import { extractFitsFrameInfo } from '../lib/fitsHeader'
 import { matchFilterCode } from '../lib/asiairFilenameParser'
 import { sessionFilterOptions } from '../lib/gear'
+import { flatDarkFor } from '../lib/flatDarks'
 
 export function FrameForm() {
   const { projectId, sessionId, frameId } = useParams()
@@ -188,6 +189,16 @@ export function FrameForm() {
       }))
       await bulkPut<Frame>('frames', flats)
       written.push(...flats)
+    }
+
+    // Flat darks calibrate flats, so every new flat batch gets a matching one
+    // (same filter, exposure, gain, temp). Flats edited in place already have
+    // theirs, so only newly created flats are covered.
+    const newFlats = written.filter((f) => f.frameType === 'flat' && !(isEdit && f.id === existing?.id))
+    if (newFlats.length > 0) {
+      const flatDarks = newFlats.map((flat) => flatDarkFor(flat))
+      await bulkPut<Frame>('frames', flatDarks)
+      written.push(...flatDarks)
     }
 
     // The session advances if every batch in it has now moved past it.
@@ -377,7 +388,8 @@ export function FrameForm() {
               </div>
             )}
             <div className="muted" style={{ marginTop: '0.25rem' }}>
-              One flat batch is created for this filter and for each filter selected below.
+              One flat batch (plus a matching flat dark batch) is created for this filter and
+              for each filter selected below.
               Uses the same binning and temperature as this batch - flats just need
               their own count and, usually, a much shorter exposure. Leave the exposure blank
               for auto-exposure flats - fill in the real value later once you can read it off
