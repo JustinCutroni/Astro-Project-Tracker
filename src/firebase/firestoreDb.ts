@@ -106,6 +106,8 @@ export function useDocument<T extends { id: string }>(
   useEffect(() => {
     const uid = auth.currentUser?.uid
     if (!uid || !id) {
+      // Reset to "no data" when there is nothing to subscribe to.
+      // oxlint-disable-next-line react/set-state-in-effect
       setData(undefined)
       return
     }
