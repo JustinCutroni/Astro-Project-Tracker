@@ -1,8 +1,10 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
+import { PipelineProgress } from '../components/PipelineProgress'
 import { StatusBadge } from '../components/StatusBadge'
 import { daysSince, formatDate, formatMinutes, today } from '../lib/format'
 import {
+  pipelineProgress,
   STATUS_DOT,
   STATUS_LABEL,
 } from '../lib/status'
@@ -81,6 +83,14 @@ export function ProjectDetail() {
           label={STATUS_LABEL[project.status]}
           dot={STATUS_DOT[project.status]}
         />
+      </div>
+
+      <div className="card">
+        <div className="card-title-row">
+          <h3>Overall progress</h3>
+          <span className="muted">{pipelineProgress(project, frames)}%</span>
+        </div>
+        <PipelineProgress percent={pipelineProgress(project, frames)} status={project.status} />
       </div>
 
       <div className="stat-grid">
