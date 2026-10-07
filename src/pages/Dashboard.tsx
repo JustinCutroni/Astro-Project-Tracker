@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCollection } from '../firebase/firestoreDb'
+import { PipelineProgress } from '../components/PipelineProgress'
 import { StatusBadge } from '../components/StatusBadge'
 import { daysSince, formatMinutes, relativeDayLabel, today } from '../lib/format'
-import { STATUS_DOT, STATUS_LABEL } from '../lib/status'
+import { pipelineProgress, STATUS_DOT, STATUS_LABEL } from '../lib/status'
 import {
   integrationMinutesForFrames,
   plannedIntegrationMinutesForFrames,
@@ -176,6 +177,7 @@ export function Dashboard() {
           plannedMinutes > 0
             ? Math.min(100, Math.round((capturedMinutes / plannedMinutes) * 100))
             : undefined
+        const overall = pipelineProgress(project, projectFrames)
 
         return (
           <Link to={`/projects/${project.id}`} className="card-link" key={project.id}>
@@ -194,13 +196,9 @@ export function Dashboard() {
               </div>
               <div className="muted" style={{ marginTop: '0.4rem' }}>
                 {formatMinutes(capturedMinutes)} captured / {formatMinutes(plannedMinutes)} planned
-                {percentDone !== undefined ? ` · ${percentDone}%` : ''}
+                {percentDone !== undefined ? ` · ${percentDone}% captured` : ''}
               </div>
-              {percentDone !== undefined && (
-                <div className="progress-track">
-                  <div className="progress-fill" style={{ width: `${percentDone}%` }} />
-                </div>
-              )}
+              <PipelineProgress percent={overall} status={project.status} />
             </div>
           </Link>
         )
