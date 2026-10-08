@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useCollection, useDocument } from '../firebase/firestoreDb'
+import { removeDoc, useCollection, useDocument } from '../firebase/firestoreDb'
+import { downloadSessionLog, formatBytes, saveSessionLog } from '../lib/logStore'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
 import { STATUS_DOT, STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
@@ -16,6 +17,7 @@ import {
   type FrameType,
   type Project,
   type Session,
+  type SessionLog,
 } from '../types/models'
 
 type SortBy = 'type' | 'filter' | 'newest'
@@ -27,11 +29,14 @@ export function SessionDetail() {
   const frames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
   const filtersRaw = useCollection<FilterDef>('filters')
   const project = useDocument<Project>('projects', projectId)
+  const logs = useCollection<SessionLog>('sessionLogs', { field: 'sessionId', value: sessionId })
   const catalog = useGearCatalog()
 
   const [typeFilter, setTypeFilter] = useState<FrameType | 'all'>('all')
   const [filterIdFilter, setFilterIdFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<SortBy>('type')
+  const [logError, setLogError] = useState<string>()
+  const [logBusy, setLogBusy] = useState(false)
 
   if (!session || !frames || !filtersRaw || !projectId) return null
   const filters = sortFilters(filtersRaw)
@@ -44,6 +49,27 @@ export function SessionDetail() {
   )
 
   const minutes = integrationMinutesForFrames(frames)
+
+  async function handleLogFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target
+    const file = input.files?.[0]
+    if (!file || !session || !projectId) return
+    setLogError(undefined)
+    setLogBusy(true)
+    try {
+      await saveSessionLog(file, { id: session.id, projectId })
+    } catch (err) {
+      setLogError(err instanceof Error ? err.message : 'Could not store the log file.')
+    } finally {
+      setLogBusy(false)
+      input.value = ''
+    }
+  }
+
+  async function handleRemoveLog(log: SessionLog) {
+    if (!confirm(`Remove ${log.fileName}? The stored copy will be deleted.`)) return
+    await removeDoc('sessionLogs', log.id)
+  }
 
   const filterOrder = new Map(filters.map((f, i) => [f.id, i]))
   const filterRank = (f: Frame) => (f.filterId ? (filterOrder.get(f.filterId) ?? filters.length) : Infinity)
@@ -110,12 +136,47 @@ export function SessionDetail() {
         </div>
       )}
 
+      <div className="card">
+        <h3>Log files</h3>
+        {logs && logs.length === 0 && (
+          <div className="muted">
+            No logs stored. Upload the session's ASIAIR <code>Autorun_Log_*.txt</code> to keep it with
+            this session. It's stored as-is and doesn't change any frames.
+          </div>
+        )}
+        {[...(logs ?? [])]
+          .sort((a, b) => b.importedAt.localeCompare(a.importedAt))
+          .map((log) => (
+            <div className="card-title-row" key={log.id} style={{ marginBottom: '0.5rem' }}>
+              <div className="muted">
+                {log.fileName} · {formatBytes(log.sizeBytes)} · added {formatDate(log.importedAt)}
+              </div>
+              <div>
+                <button type="button" className="btn btn-sm" onClick={() => downloadSessionLog(log)}>
+                  Download
+                </button>{' '}
+                <button type="button" className="btn btn-sm btn-danger" onClick={() => handleRemoveLog(log)}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        <div className="form-field">
+          <label htmlFor="logFile">Upload a log file</label>
+          <input
+            id="logFile"
+            type="file"
+            accept=".txt,.log,text/plain"
+            disabled={logBusy}
+            onChange={handleLogFile}
+          />
+        </div>
+        {logError && <div style={{ color: 'var(--accent)' }}>{logError}</div>}
+      </div>
+
       <div className="form-actions">
         <Link to={`/projects/${projectId}/sessions/${session.id}/edit`} className="btn">
           Edit session
-        </Link>
-        <Link to={`/projects/${projectId}/sessions/${session.id}/import`} className="btn">
-          Import log
         </Link>
         <Link to={`/projects/${projectId}/sessions/${session.id}/copy`} className="btn">
           Copy session

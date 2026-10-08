@@ -158,31 +158,23 @@ Install it on your phone from that URL: open it in the browser and choose
 "Add to Home Screen" (iOS Safari) or "Install app" (Android Chrome). It then
 launches full-screen and works offline.
 
-## ASIAIR Autorun log import
+## Session log files
 
-**Import log** - from a project page (drafts a new session) or from an
-existing session's page (adds frame batches to it) - lets you paste or
-upload the `Autorun_Log_*.txt` file ASIAIR writes during a session, and
-drafts frame batches from it automatically: frame type, exposure length,
-binning, an approximate temperature, and - critically - the *actual* number
-of subs completed, recovered from the per-image log lines rather than
-trusting the planned count. An exposure that was still running when the run
-was stopped isn't counted, runs that finished no frames at all are dropped,
-and a run that was stopped and restarted at the same target/exposure/
-binning/filter is merged back into one batch (with a note saying so).
-The filter is read from ASIAIR's "Filter change, S change to H" lines and
-matched to your filter list. Frames that were exposing while guiding lost
-its star are flagged (but still counted), and calibration sets shot twice
-at different exposures are flagged as a probable redo. Runs entirely
-client-side, so it stays free and works offline.
+A session's page has a **Log files** card where you can upload the
+`Autorun_Log_*.txt` file ASIAIR writes during a session - typically after the
+session is over. The file is stored exactly as uploaded (gzipped, then kept
+in Firestore alongside your other data, so it syncs and works offline) and can
+be downloaded or removed from the same card. A session can hold several logs.
 
-It can't recover gain/offset, or the filter of a batch with no filter-change
-line to go on - ASIAIR doesn't write those to this log - so those stay
-editable blanks for you to fill in during review, before anything is saved.
-Pasting a single sample `.fit` filename from that batch's folder into the
-"Sample filename" field fills those gaps automatically, since ASIAIR encodes
-the filter, gain, and temperature into the filename itself (e.g.
-`Light_NGC 7000_180.0s_Bin1_2600MM_H_gain100_20260821-232712_252deg_-0.6F_0001.fit`).
+Uploading a log does **not** read it or change anything: frame batches,
+counts and temperatures are entered by hand (or from a sample FITS file or
+filename, below). Logs are kept so they can be put to use later. Each log must
+compress to under about 900 KB, which is far more than a night's log needs;
+a larger file is rejected with a message. Deleting a session or project
+deletes its logs. Copying a session does not copy them.
+
+The old log parser (`src/lib/asiairLogParser.ts`) is no longer wired into the
+app but is left in place for that later use.
 
 ## Loading a frame batch from a FITS file
 

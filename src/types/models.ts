@@ -43,6 +43,21 @@ export interface Session {
   updatedAt: string
 }
 
+// A raw log file (e.g. an ASIAIR Autorun log) kept with a session. The file is
+// stored byte-for-byte, gzipped and base64-encoded so it fits in a Firestore
+// document; see lib/logStore.ts. It lives in its own collection so listing
+// sessions never has to download log contents.
+export interface SessionLog {
+  id: string
+  sessionId: string
+  projectId: string
+  fileName: string
+  sizeBytes: number // original, uncompressed size
+  encoding: 'gzip-base64'
+  data: string
+  importedAt: string
+}
+
 // One batch of subs of a single type/filter/settings combo within a session.
 export interface Frame {
   id: string
