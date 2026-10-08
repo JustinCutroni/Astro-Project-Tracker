@@ -18,6 +18,7 @@ export type CollectionName =
   | 'projects'
   | 'sessions'
   | 'frames'
+  | 'sessionLogs'
   | 'cameras'
   | 'telescopes'
   | 'mounts'

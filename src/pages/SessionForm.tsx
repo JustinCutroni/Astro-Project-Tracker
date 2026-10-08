@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, putDoc, removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { STATUSES, type Status, type Frame, type Session } from '../types/models'
+import { STATUSES, type Status, type Frame, type Session, type SessionLog } from '../types/models'
 import { STATUS_LABEL } from '../lib/status'
 import { cascadeStatus, rollUpProject } from '../lib/statusSync'
 import { useKnownLocations } from '../lib/locations'
@@ -131,6 +131,7 @@ export function SessionForm() {
   async function handleDelete() {
     if (!existing) return
     if (!confirm('Delete this session and all its frames?')) return
+    await removeWhere<SessionLog>('sessionLogs', 'sessionId', existing.id)
     await removeWhere<Frame>('frames', 'sessionId', existing.id)
     await removeDoc('sessions', existing.id)
     await rollUpProject(projectId!, { removedIds: [existing.id] })

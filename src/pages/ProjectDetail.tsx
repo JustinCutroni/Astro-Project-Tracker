@@ -16,6 +16,7 @@ import {
   type Frame,
   type Project,
   type Session,
+  type SessionLog,
 } from '../types/models'
 import { sortFilters } from '../lib/filters'
 
@@ -63,6 +64,7 @@ export function ProjectDetail() {
   async function handleDelete() {
     if (!project) return
     if (!confirm(`Delete "${project.projectName || project.target}" and all its sessions?`)) return
+    await removeWhere<SessionLog>('sessionLogs', 'projectId', project.id)
     await removeWhere<Frame>('frames', 'projectId', project.id)
     await removeWhere<Session>('sessions', 'projectId', project.id)
     await removeDoc('projects', project.id)
@@ -151,9 +153,6 @@ export function ProjectDetail() {
 
       <div className="page-header" style={{ marginTop: '1.5rem' }}>
         <h2>Sessions</h2>
-        <Link to={`/projects/${project.id}/sessions/import`} className="btn btn-sm">
-          Import log
-        </Link>
       </div>
 
       {sortedSessions.length === 0 && (

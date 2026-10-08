@@ -10,7 +10,6 @@ import { SessionForm } from './pages/SessionForm'
 import { SessionDetail } from './pages/SessionDetail'
 import { CopySession } from './pages/CopySession'
 import { FrameForm } from './pages/FrameForm'
-import { ImportSessionLog } from './pages/ImportSessionLog'
 import { Settings } from './pages/Settings'
 import { useAuthUser } from './firebase/auth'
 import { seedDefaultFiltersIfEmpty } from './firebase/firestoreDb'
@@ -38,12 +37,7 @@ function App() {
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/projects/:id/edit" element={<ProjectForm />} />
           <Route path="/projects/:projectId/sessions/new" element={<SessionForm />} />
-          <Route path="/projects/:projectId/sessions/import" element={<ImportSessionLog />} />
           <Route path="/projects/:projectId/sessions/:sessionId" element={<SessionDetail />} />
-          <Route
-            path="/projects/:projectId/sessions/:sessionId/import"
-            element={<ImportSessionLog />}
-          />
           <Route
             path="/projects/:projectId/sessions/:sessionId/copy"
             element={<CopySession />}
