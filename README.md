@@ -267,3 +267,18 @@ complete without real network access to Google, so a small "Emulator test
 sign-in" form appears on the sign-in screen when
 `VITE_USE_FIREBASE_EMULATOR=true` - it's compiled out of any real
 deployment, where that env var is unset.
+
+## Automated tests
+
+- `npm test` - fast checks that need no network or Firebase: the status
+  rules (how a change moves through project -> session -> frame batches,
+  and when a parent advances) and integration-time totals (Light frames
+  only; darks, flats, and bias never count; batches still in Planning
+  aren't captured time yet).
+- `npm run test:rules` - checks `firestore.rules` against the local
+  Firestore emulator: you can read/write only your own `users/<uid>/...`
+  data, and signed-out visitors and other accounts get nothing. Needs the
+  Firebase CLI (`npm install -g firebase-tools`) and Java; the first run
+  downloads the emulator.
+
+Any new Firestore collection needs a rules change and a matching test here.
