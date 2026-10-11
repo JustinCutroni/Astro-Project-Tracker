@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { bulkPut, putDoc, removeDoc, removeWhere, useCollection, useDocument } from '../firebase/firestoreDb'
 import { newId, nowIso } from '../lib/ids'
-import { STATUSES, type Status, type Frame, type Session, type SessionLog } from '../types/models'
+import { STATUSES, type Status, type Frame, type Project, type Session, type SessionLog } from '../types/models'
 import { STATUS_LABEL } from '../lib/status'
 import { cascadeStatus, rollUpProject } from '../lib/statusSync'
 import { useKnownLocations } from '../lib/locations'
@@ -25,6 +25,7 @@ export function SessionForm() {
   const isEdit = Boolean(sessionId)
 
   const existing = useDocument<Session>('sessions', sessionId)
+  const project = useDocument<Project>('projects', projectId)
   const catalog = useGearCatalog()
   const projectSessions = useCollection<Session>('sessions', { field: 'projectId', value: projectId })
   const sessionFrames = useCollection<Frame>('frames', { field: 'sessionId', value: sessionId })
@@ -138,6 +139,7 @@ export function SessionForm() {
     navigate(`/projects/${projectId}`)
   }
 
+  const projectLabel = project?.projectName || project?.target
   const backTo = isEdit ? `/projects/${projectId}/sessions/${sessionId}` : `/projects/${projectId}`
 
   return (
@@ -147,6 +149,7 @@ export function SessionForm() {
       </Link>
       <div className="page-header">
         <h2>{isEdit ? 'Edit session' : 'New session'}</h2>
+        {projectLabel && <p className="muted">{projectLabel}</p>}
       </div>
       <form onSubmit={handleSubmit}>
         <div className="form-row">
