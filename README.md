@@ -57,7 +57,8 @@ Projects, sessions and frame batches share one status, in pipeline order:
 - **Down:** changing a session's status updates its frame batches. Moving
   forward brings batches that are behind up to the new status (ones already
   ahead are left alone); moving backward pulls back any batch that's further
-  along.
+  along. You can change a session's status straight from the dropdown on its
+  page, without opening the edit form; the same rules apply.
 - **Up:** a session advances by itself once *every* one of its batches has
   reached the next stage, and a project once *every* session has. This only
   ever moves forward, so a session you leave as Planning (say, clouded out)

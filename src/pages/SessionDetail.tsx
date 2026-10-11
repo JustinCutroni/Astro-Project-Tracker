@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { removeDoc, useCollection, useDocument } from '../firebase/firestoreDb'
 import { downloadSessionLog, formatBytes, saveSessionLog } from '../lib/logStore'
-import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMinutes } from '../lib/format'
 import { STATUS_DOT, STATUS_LABEL, FRAME_TYPE_LABEL } from '../lib/status'
+import { changeSessionStatus } from '../lib/statusSync'
+import { StatusBadge } from '../components/StatusBadge'
 import { sortFilters } from '../lib/filters'
 import { frameFilterName, optionLabel, selectable, useGearCatalog } from '../lib/gear'
 import { GearList } from '../components/GearList'
 import {
   FRAME_TYPES,
+  STATUSES,
   integrationMinutesForFrames,
   totalExposureSeconds,
   type FilterDef,
@@ -18,6 +20,7 @@ import {
   type Project,
   type Session,
   type SessionLog,
+  type Status,
 } from '../types/models'
 
 type SortBy = 'type' | 'filter' | 'newest'
@@ -49,6 +52,11 @@ export function SessionDetail() {
   )
 
   const minutes = integrationMinutesForFrames(frames)
+
+  async function handleStatusChange(to: Status) {
+    if (!session || to === session.status) return
+    await changeSessionStatus(session, frames ?? [], to)
+  }
 
   async function handleLogFile(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.target
@@ -98,10 +106,22 @@ export function SessionDetail() {
           <h2>{formatDate(session.date)}</h2>
           {session.location && <div className="muted">{session.location}</div>}
         </div>
-        <StatusBadge
-          label={STATUS_LABEL[session.status]}
-          dot={STATUS_DOT[session.status]}
-        />
+        <div>
+          <label htmlFor="session-status" className="muted">
+            Status
+          </label>
+          <select
+            id="session-status"
+            value={session.status}
+            onChange={(e) => handleStatusChange(e.target.value as Status)}
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="stat-grid">
