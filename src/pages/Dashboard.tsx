@@ -96,8 +96,8 @@ export function Dashboard() {
           <div className="muted" style={{ marginBottom: '0.6rem' }}>
             No session planned yet.
           </div>
-          <div className="form-row" style={{ alignItems: 'flex-end' }}>
-            <div className="form-field">
+          <div className="form-row form-row-end">
+            <div className="form-field" style={{ marginBottom: 0 }}>
               <label htmlFor="planProject">Project</label>
               <select
                 id="planProject"
