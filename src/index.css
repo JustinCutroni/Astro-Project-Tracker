@@ -390,6 +390,30 @@ button {
   font-size: 1.3rem;
 }
 
+.status-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.status-picker::before {
+  content: '';
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: var(--dot, var(--text-dim));
+}
+
+.status-picker label {
+  font-weight: 600;
+}
+
+.status-picker select {
+  flex: 1;
+  max-width: 14rem;
+}
+
 .form-field {
   display: flex;
   flex-direction: column;

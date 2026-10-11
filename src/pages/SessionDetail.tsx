@@ -106,22 +106,21 @@ export function SessionDetail() {
           <h2>{formatDate(session.date)}</h2>
           {session.location && <div className="muted">{session.location}</div>}
         </div>
-        <div>
-          <label htmlFor="session-status" className="muted">
-            Status
-          </label>
-          <select
-            id="session-status"
-            value={session.status}
-            onChange={(e) => handleStatusChange(e.target.value as Status)}
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </div>
+      </div>
+
+      <div className="status-picker" style={{ '--dot': STATUS_DOT[session.status] } as React.CSSProperties}>
+        <label htmlFor="session-status">Status</label>
+        <select
+          id="session-status"
+          value={session.status}
+          onChange={(e) => handleStatusChange(e.target.value as Status)}
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="stat-grid">
