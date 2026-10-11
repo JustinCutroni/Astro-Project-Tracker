@@ -1,4 +1,4 @@
-import { bulkMerge, getAllFromServer, getOne, getWhere, putDoc } from '../firebase/firestoreDb'
+import { bulkMerge, bulkPut, getAllFromServer, getOne, getWhere, putDoc } from '../firebase/firestoreDb'
 import { nowIso } from './ids'
 import { STATUSES, type Frame, type Project, type Session, type Status } from '../types/models'
 
@@ -86,6 +86,18 @@ export async function rollUpProject(
   if (earliest === undefined || statusRank(earliest) <= statusRank(project.status)) return
 
   await putDoc<Project>('projects', { ...project, status: earliest, updatedAt: nowIso() })
+}
+
+// Moves a session to a new status by hand: its frame batches follow (see
+// cascadeStatus) and the project may advance (see rollUpProject). Returns the
+// updated session.
+export async function changeSessionStatus(session: Session, frames: Frame[], to: Status): Promise<Session> {
+  const saved: Session = { ...session, status: to, updatedAt: nowIso() }
+  await putDoc<Session>('sessions', saved)
+  const cascaded = cascadeStatus(frames, session.status, to)
+  if (cascaded.length > 0) await bulkPut<Frame>('frames', cascaded)
+  await rollUpProject(session.projectId, { put: [saved] })
+  return saved
 }
 
 // Records saved before the statuses were unified used past-tense names, and
