@@ -1,46 +1,101 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* Warm observatory-log palette: charcoal + amber, not cold tech-blue. */
-  --bg: #15110c;
-  --bg-elevated: #1c1712;
-  --bg-card: #221c15;
-  --border: #382c1e;
-  --text: #f1e6d3;
-  --text-dim: #a4937a;
-  --accent: #d97a35;
-  --accent-dim: #3d2a12;
-  --accent-contrast: #1c1712;
-  --status-planning: #8a7a63;
-  --status-collecting: #c9954a;
-  --status-transferring: #b8763f;
-  --status-processing: #8f6a8f;
-  --status-published: #6b8f5a;
+  /* Colors: see the design system. Light is the default; Dark follows the device
+     when no theme is chosen; Night (red) is always chosen by hand. */
+  --bg: #f2f4f6;
+  --surface: #fbfcfd;
+  --surface-raised: #ffffff;
+  --line: #dfe3e8;
+  --control-border: #6b7280;
+  --ink: #141a22;
+  --ink-muted: #4a5462;
+  --accent: #0b6b66;
+  --on-accent: #ffffff;
+  --accent-soft: #d6ece9;
+  --focus: #1d4ed8;
+  --danger: #b3261e;
+  --status-planning: #6b7280;
+  --status-capturing: #9a6200;
+  --status-transferring: #b24a1a;
+  --status-processing: #7a4f8f;
+  --status-complete: #2a62b8;
+  --shadow-float: 0 6px 20px rgba(20, 26, 34, 0.18);
 
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 {
-  font-family: Georgia, 'Times New Roman', serif;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #0a0f1c;
+    --surface: #121a2b;
+    --surface-raised: #1b2538;
+    --line: #223049;
+    --control-border: #7d8aa3;
+    --ink: #e8edf5;
+    --ink-muted: #a3afc4;
+    --accent: #4fc3b8;
+    --on-accent: #06201e;
+    --accent-soft: #12343a;
+    --focus: #8fb8ff;
+    --danger: #ff8a80;
+    --status-planning: #9aa6bb;
+    --status-capturing: #d9a441;
+    --status-transferring: #e8924d;
+    --status-processing: #c39bd6;
+    --status-complete: #8db4f0;
+    --shadow-float: 0 6px 20px rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0a0f1c;
+  --surface: #121a2b;
+  --surface-raised: #1b2538;
+  --line: #223049;
+  --control-border: #7d8aa3;
+  --ink: #e8edf5;
+  --ink-muted: #a3afc4;
+  --accent: #4fc3b8;
+  --on-accent: #06201e;
+  --accent-soft: #12343a;
+  --focus: #8fb8ff;
+  --danger: #ff8a80;
+  --status-planning: #9aa6bb;
+  --status-capturing: #d9a441;
+  --status-transferring: #e8924d;
+  --status-processing: #c39bd6;
+  --status-complete: #8db4f0;
+  --shadow-float: 0 6px 20px rgba(0, 0, 0, 0.6);
 }
 
 /* Night mode: monochrome red, for preserving night vision at the eyepiece. */
 :root[data-theme='night'] {
+  color-scheme: dark;
   --bg: #000000;
-  --bg-elevated: #0d0000;
-  --bg-card: #130202;
-  --border: #3a0a0a;
-  --text: #ff5555;
-  --text-dim: #8a3333;
-  --accent: #ff2b2b;
-  --accent-dim: #4d0000;
-  --accent-contrast: #1a0000;
-  --status-planning: #7a3d3d;
-  --status-collecting: #b33939;
-  --status-transferring: #cc4c4c;
-  --status-processing: #e04040;
-  --status-published: #ff2b2b;
+  --surface: #0c0000;
+  --surface-raised: #170303;
+  --line: #2a0808;
+  --control-border: #a04545;
+  --ink: #ff6b6b;
+  --ink-muted: #dc6666;
+  --accent: #ff4d4d;
+  --on-accent: #1a0000;
+  --accent-soft: #3a0505;
+  --focus: #ff9a9a;
+  --danger: #ff7a7a;
+  --status-planning: #b04a4a;
+  --status-capturing: #c85555;
+  --status-transferring: #e06060;
+  --status-processing: #f07070;
+  --status-complete: #ff8888;
+  --shadow-float: none;
 }
 
 * {
@@ -56,7 +111,7 @@ body,
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
 }
 
 a {
@@ -104,8 +159,8 @@ button {
 
 .app-header {
   padding: 0.9rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -128,13 +183,13 @@ button {
   height: 2.1rem;
   border-radius: 999px;
   border: none;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-dim);
+  background: var(--line);
+  color: var(--ink-muted);
   flex-shrink: 0;
 }
 
 .night-toggle[aria-pressed='true'] {
-  background: var(--accent-dim);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 
@@ -153,8 +208,8 @@ button {
   left: 0;
   right: 0;
   display: flex;
-  background: var(--bg-elevated);
-  border-top: 1px solid var(--border);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 10;
 }
@@ -164,7 +219,7 @@ button {
   text-align: center;
   padding: 0.6rem 0 0.5rem;
   text-decoration: none;
-  color: var(--text-dim);
+  color: var(--ink-muted);
   font-size: 0.72rem;
   display: flex;
   flex-direction: column;
@@ -181,8 +236,8 @@ button {
 }
 
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 0.75rem;
@@ -207,14 +262,14 @@ button {
 }
 
 .muted {
-  color: var(--text-dim);
+  color: var(--ink-muted);
   font-size: 0.85rem;
 }
 
 .progress-track {
   height: 6px;
   border-radius: 3px;
-  background: var(--accent-dim);
+  background: var(--accent-soft);
   overflow: hidden;
   margin-top: 0.4rem;
 }
@@ -241,7 +296,7 @@ button {
   gap: 0.25rem;
   margin-top: 0.3rem;
   font-size: 0.66rem;
-  color: var(--text-dim);
+  color: var(--ink-muted);
   opacity: 0.7;
 }
 
@@ -265,7 +320,7 @@ button {
   font-weight: 600;
   text-transform: capitalize;
   white-space: nowrap;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--line);
 }
 
 .badge::before {
@@ -273,7 +328,7 @@ button {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background: var(--dot, var(--text-dim));
+  background: var(--dot, var(--ink-muted));
 }
 
 .btn {
@@ -281,9 +336,9 @@ button {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
   border-radius: 6px;
   padding: 0.6rem 1rem;
   font-weight: 600;
@@ -293,7 +348,7 @@ button {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent-contrast);
+  color: var(--on-accent);
 }
 
 .btn-block {
@@ -307,7 +362,7 @@ button {
 
 .btn-danger {
   color: var(--accent);
-  border-color: var(--accent-dim);
+  border-color: var(--accent-soft);
 }
 
 .fab {
@@ -318,10 +373,10 @@ button {
   height: 3.2rem;
   border-radius: 999px;
   background: var(--accent);
-  color: var(--accent-contrast);
+  color: var(--on-accent);
   font-size: 1.6rem;
   border: none;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-float);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -341,12 +396,12 @@ button {
   list-style: none;
   margin: 0.25rem 0 0;
   padding: 0.25rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: 8px;
   max-height: 12rem;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-float);
 }
 
 .suggestion-list li {
@@ -361,17 +416,17 @@ button {
   background: none;
   border: none;
   border-radius: 4px;
-  color: var(--text);
+  color: var(--ink);
   font-size: 0.9rem;
 }
 
 .suggestion-list button:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--line);
 }
 
 .back-link {
   display: inline-block;
-  color: var(--text-dim);
+  color: var(--ink-muted);
   text-decoration: none;
   font-size: 0.85rem;
   margin-bottom: 0.6rem;
@@ -402,7 +457,7 @@ button {
   width: 0.7rem;
   height: 0.7rem;
   border-radius: 999px;
-  background: var(--dot, var(--text-dim));
+  background: var(--dot, var(--ink-muted));
 }
 
 .status-picker label {
@@ -423,7 +478,7 @@ button {
 
 .form-field label {
   font-size: 0.82rem;
-  color: var(--text-dim);
+  color: var(--ink-muted);
 }
 
 .form-row {
@@ -440,8 +495,8 @@ button {
 input,
 select,
 textarea {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
   padding: 0.55rem 0.65rem;
 }
@@ -460,12 +515,12 @@ textarea {
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;
-  color: var(--text-dim);
+  color: var(--ink-muted);
 }
 
 .tabs {
   display: flex;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   margin-bottom: 1rem;
   gap: 1.2rem;
   overflow-x: auto;
@@ -475,14 +530,14 @@ textarea {
   background: none;
   border: none;
   padding: 0.6rem 0.1rem;
-  color: var(--text-dim);
+  color: var(--ink-muted);
   font-weight: 600;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
 }
 
 .tabs button.active {
-  color: var(--text);
+  color: var(--ink);
   border-bottom-color: var(--accent);
 }
 
@@ -491,7 +546,7 @@ textarea {
   justify-content: space-between;
   align-items: center;
   padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   gap: 0.5rem;
 }
 
@@ -512,8 +567,8 @@ a.list-item {
 }
 
 .stat-box {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.8rem;
 }
@@ -525,20 +580,20 @@ a.list-item {
 
 .stat-box .label {
   font-size: 0.75rem;
-  color: var(--text-dim);
+  color: var(--ink-muted);
 }
 
 .icon-btn {
   background: none;
   border: none;
-  color: var(--text-dim);
+  color: var(--ink-muted);
   font-size: 1.1rem;
   padding: 0.2rem 0.4rem;
 }
 
 .offline-banner {
-  background: var(--accent-dim);
-  color: var(--accent-contrast);
+  background: var(--accent-soft);
+  color: var(--ink);
   text-align: center;
   font-size: 0.8rem;
   padding: 0.35rem;
@@ -553,10 +608,10 @@ a.list-item {
   list-style: none;
   cursor: pointer;
   padding: 0.55rem 0.75rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
-  color: var(--text);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -572,7 +627,7 @@ a.list-item {
   position: absolute;
   right: 0.75rem;
   top: 0.55rem;
-  color: var(--text-dim);
+  color: var(--ink-muted);
 }
 
 .multi-select-menu {
@@ -583,12 +638,12 @@ a.list-item {
   z-index: 20;
   margin-top: 0.25rem;
   padding: 0.25rem 0.75rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
   border-radius: 8px;
   max-height: 14rem;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-float);
 }
 
 /* Settings page */
@@ -639,4 +694,26 @@ a.list-item {
 .catalog-hint {
   font-size: 0.78rem;
   padding-top: 0.5rem;
+}
+
+.theme-picker {
+  border: none;
+  margin-inline: 0;
+}
+
+.theme-picker legend {
+  padding: 0;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.theme-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+}
+
+.theme-option input {
+  margin-top: 0.2rem;
 }

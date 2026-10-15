@@ -10,10 +10,10 @@ export const STATUS_LABEL: Record<Status, string> = {
 
 export const STATUS_DOT: Record<Status, string> = {
   planning: 'var(--status-planning)',
-  capturing: 'var(--status-collecting)',
+  capturing: 'var(--status-capturing)',
   transferring: 'var(--status-transferring)',
   processing: 'var(--status-processing)',
-  complete: 'var(--status-published)',
+  complete: 'var(--status-complete)',
 }
 
 export const FRAME_TYPE_LABEL: Record<FrameType, string> = {

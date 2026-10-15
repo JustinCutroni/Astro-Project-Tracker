@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { IconHome, IconMoon, IconSliders, IconTarget } from './icons'
-import { useNightMode } from '../lib/useNightMode'
+import { useTheme } from '../lib/useTheme'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', Icon: IconHome, end: true },
@@ -11,7 +11,8 @@ const NAV_ITEMS = [
 
 export function Layout() {
   const [online, setOnline] = useState(navigator.onLine)
-  const [nightMode, setNightMode] = useNightMode()
+  const [theme, setTheme] = useTheme()
+  const nightMode = theme === 'night'
 
   useEffect(() => {
     const goOnline = () => setOnline(true)
@@ -31,7 +32,7 @@ export function Layout() {
         <button
           type="button"
           className="night-toggle"
-          onClick={() => setNightMode((v) => !v)}
+          onClick={() => setTheme(nightMode ? 'auto' : 'night')}
           aria-pressed={nightMode}
           aria-label="Toggle night mode"
         >

@@ -21,8 +21,8 @@ export default defineConfig(({ mode }) => ({
         short_name: 'AstroTracker',
         description:
           'Plan, log, and track astrophotography projects across sessions, locations, and equipment - online or off.',
-        theme_color: '#15110c',
-        background_color: '#15110c',
+        theme_color: '#0a0f1c',
+        background_color: '#0a0f1c',
         display: 'standalone',
         start_url: '.',
         scope: '.',
@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
       },
     }),
   ],

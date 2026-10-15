@@ -5,12 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="apple-touch-icon" href="pwa-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#15110c" />
+    <meta name="theme-color" content="#f2f4f6" />
     <meta
       name="description"
       content="Plan, log, and track astrophotography projects across sessions, locations, and equipment - online or off."
     />
     <title>Astro Project Tracker</title>
+    <script>
+      // Apply a saved theme before the page paints, so there is no flash of the wrong colors.
+      try {
+        var theme = localStorage.getItem('astro-theme')
+        if (theme === 'light' || theme === 'dark' || theme === 'night') document.documentElement.dataset.theme = theme
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
