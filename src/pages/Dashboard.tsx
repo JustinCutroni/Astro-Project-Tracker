@@ -145,9 +145,14 @@ export function Dashboard() {
 
       <div className="page-header">
         <h2>Active projects</h2>
-        <Link to="/projects" className="muted">
-          See all
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <Link to="/projects" className="muted">
+            See all
+          </Link>
+          <Link to="/projects/new" className="btn btn-primary btn-sm">
+            Add project
+          </Link>
+        </div>
       </div>
 
       {activeProjects.length === 0 && (

@@ -412,6 +412,7 @@ button {
   background: var(--accent);
   color: var(--on-accent);
   font-size: 1.75rem;
+  text-decoration: none;
   border: none;
   box-shadow: var(--shadow-float);
   display: flex;
