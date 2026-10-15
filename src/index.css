@@ -399,6 +399,7 @@ button {
 .btn-danger {
   background: transparent;
   color: var(--danger);
+  border: 2px solid var(--danger);
 }
 
 .fab {
