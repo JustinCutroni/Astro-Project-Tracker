@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { signOutUser, useAuthUser } from '../firebase/auth'
+import { THEME_CHOICES } from '../lib/theme'
+import { useTheme } from '../lib/useTheme'
 import { CamerasTab } from './settings/CamerasTab'
 import { TelescopesTab } from './settings/TelescopesTab'
 import { MountsTab } from './settings/MountsTab'
@@ -19,6 +21,7 @@ type Tab = (typeof TABS)[number]['id']
 export function Settings() {
   const [tab, setTab] = useState<Tab>('cameras')
   const { user } = useAuthUser()
+  const [theme, setTheme] = useTheme()
 
   return (
     <div>
@@ -34,6 +37,24 @@ export function Settings() {
           </button>
         </div>
       )}
+
+      <fieldset className="card theme-picker">
+        <legend>Appearance</legend>
+        {THEME_CHOICES.map((choice) => (
+          <label key={choice.id} className="theme-option">
+            <input
+              type="radio"
+              name="theme"
+              checked={theme === choice.id}
+              onChange={() => setTheme(choice.id)}
+            />
+            <span>
+              {choice.label}
+              <span className="muted"> - {choice.hint}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       <div className="tabs">
         {TABS.map((t) => (
