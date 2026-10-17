@@ -259,12 +259,16 @@ needs no API key:
    Each filter is matched to your Settings catalog ("Lum / Clear" becomes L,
    "H-alpha" becomes Ha); anything that doesn't match is left for you to pick
    or skip - nothing is added to your catalog automatically.
-3. Choose how many nights to spread the imaging over and set each night's
-   date (and a location, if you like). Subs are split evenly across the
-   nights.
+3. Set the hours you can shoot per night (8 by default) and a location if
+   you like. The preview lays out the nights: **each night is one filter**,
+   and a filter with more hours than fit in a night is spread over as many
+   nights as it needs, its subs split evenly (a 10-hour filter at 8 hours a
+   night becomes two 5-hour nights). Tick **Let short filters share a night**
+   if you'd rather pack filters that fit together into one night, in plan
+   order. Then set each night's date.
 
 Create makes the project plus one session per night, all in **Planning**:
-each session has a Light batch per filter, and a Flat batch (20 frames,
+each session has a Light batch for its filter (or filters), and a Flat batch (20 frames,
 exposure left at 0 until you capture it) with a matching Flat Dark per filter.
 Because everything is Planning, none of it counts toward integration time
 until you capture it.
@@ -318,7 +322,7 @@ deployment, where that env var is unset.
   only; darks, flats, and bias never count; batches still in Planning
   aren't captured time yet), plus the plan import (reading the pasted
   plan, splitting the title into target and project name, matching filter
-  names, splitting subs across nights, and building the project, sessions and
+  names, laying filters out over nights, and building the project, sessions and
   frame batches).
 - `npm run test:rules` - checks `firestore.rules` against the local
   Firestore emulator: you can read/write only your own `users/<uid>/...`
