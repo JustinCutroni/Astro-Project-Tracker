@@ -14,6 +14,9 @@ export function Projects() {
     <div>
       <div className="page-header">
         <h2>Projects</h2>
+        <Link to="/projects/import" className="btn btn-sm">
+          Import plan
+        </Link>
       </div>
 
       {projects.length === 0 && (

@@ -21,6 +21,7 @@ export function GearFields({
   ids,
   onChange,
   filtersLocked = false,
+  hideFilters = false,
   originalFilterIds = [],
   usedFilterIds = [],
   replacementOverrides = {},
@@ -30,6 +31,7 @@ export function GearFields({
   ids: GearIds
   onChange: (ids: GearIds) => void
   filtersLocked?: boolean
+  hideFilters?: boolean // camera / telescope / mount only, for callers that set filters themselves
   originalFilterIds?: string[]
   usedFilterIds?: (string | undefined)[]
   replacementOverrides?: Record<string, string>
@@ -101,7 +103,7 @@ export function GearFields({
         </div>
       </div>
 
-      {filters.length > 0 && (
+      {!hideFilters && filters.length > 0 && (
         <div className="form-field">
           <label>Filters</label>
           {filtersLocked ? (
