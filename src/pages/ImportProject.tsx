@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { bulkPut, putDoc, useCollection } from '../firebase/firestoreDb'
 import { sortFilters } from '../lib/filters'
-import { today } from '../lib/format'
+import { formatMinutes, today } from '../lib/format'
 import { selectable, useGearCatalog } from '../lib/gear'
 import { nowIso } from '../lib/ids'
 import { useKnownLocations } from '../lib/locations'
-import { buildPlan, clampNights, nightDates, planNotes } from '../lib/planBuild'
+import { MAX_NIGHTS, buildPlan, hoursPerNightFrom, nightDates, planNights, planNotes } from '../lib/planBuild'
 import { matchFilter } from '../lib/planMatch'
 import { PLAN_PROMPT, SKILL_PROMPT, parsePlan, type ProjectPlan } from '../lib/planParse'
 import { splitTitle } from '../lib/planTitle'
@@ -29,14 +29,29 @@ export function ImportProject() {
   const [filterIds, setFilterIds] = useState<string[]>([])
   const [target, setTarget] = useState('')
   const [projectName, setProjectName] = useState('')
+  const [hoursText, setHoursText] = useState('8')
+  const [combineShort, setCombineShort] = useState(false)
+  // Dates the user has entered, by night; nights beyond these get a default (see nightDates).
   const [dates, setDates] = useState<string[]>([])
   const [location, setLocation] = useState('')
   const [saving, setSaving] = useState(false)
 
   if (!catalog || !projects) return null
 
-  const includedSubs = (rows: ProjectPlan['filters'], ids: string[]) =>
-    rows.filter((_, i) => ids[i]).map((row) => row.subs)
+  // The nights follow from the filters chosen, the hours per night and the combine setting.
+  const hoursPerNight = hoursPerNightFrom(hoursText)
+  const nights = plan ? planNights(plan.filters, filterIds, hoursPerNight, combineShort) : []
+  const tooManyNights = nights.length > MAX_NIGHTS
+  const shownDates = tooManyNights ? [] : nightDates(dates, nights.length, today())
+  const filterName = (id: string) => catalog.filters.find((f) => f.id === id)?.description ?? '?'
+  const describeNight = (night: (typeof nights)[number]) => {
+    const parts = night.shares.map((share) => {
+      const row = plan!.filters[share.rowIndex]
+      return `${filterName(filterIds[share.rowIndex])} ${share.subs} × ${row.exposureSeconds}s`
+    })
+    const minutes = night.shares.reduce((sum, share) => sum + (share.subs * plan!.filters[share.rowIndex].exposureSeconds) / 60, 0)
+    return `${parts.join(' + ')} (${formatMinutes(minutes)})`
+  }
 
   const copyPrompt = async (prompt: string) => {
     try {
@@ -60,20 +75,7 @@ export function ImportProject() {
     setTarget(split.target)
     setProjectName(split.projectName ?? '')
     setFilterIds(result.plan.filters.map((row) => matchFilter(row.filter, catalog.filters)?.id ?? ''))
-    setDates(nightDates([], 1, today()))
-  }
-
-  const chooseFilter = (row: number, filterId: string) => {
-    if (!plan) return
-    const next = filterIds.map((id, i) => (i === row ? filterId : id))
-    setFilterIds(next)
-    // Skipping the biggest filter can lower how many nights make sense.
-    setDates(nightDates(dates, clampNights(dates.length, includedSubs(plan.filters, next)), today()))
-  }
-
-  const chooseNights = (requested: number) => {
-    if (!plan) return
-    setDates(nightDates(dates, clampNights(requested, includedSubs(plan.filters, filterIds)), today()))
+    setDates([])
   }
 
   const create = async (e: React.FormEvent) => {
@@ -81,7 +83,7 @@ export function ImportProject() {
     if (saving || !plan) return
     setSaving(true)
     try {
-      const built = buildPlan({ plan, target, projectName, filterIds, dates, location, catalog, now: nowIso() })
+      const built = buildPlan({ plan, target, projectName, filterIds, nights, dates: shownDates, location, catalog, now: nowIso() })
       await putDoc<Project>('projects', built.project)
       await bulkPut<Session>('sessions', built.sessions)
       for (let i = 0; i < built.frames.length; i += FRAME_BATCH_SIZE) {
@@ -96,8 +98,8 @@ export function ImportProject() {
   }
 
   const filterOptions = sortFilters(selectable(catalog.filters))
-  const hasFilters = plan ? includedSubs(plan.filters, filterIds).length > 0 : false
-  const canCreate = hasFilters && target.trim() !== ''
+  const hasFilters = filterIds.some(Boolean)
+  const canCreate = hasFilters && target.trim() !== '' && !tooManyNights
   const alreadyHasTarget = projects.some((p) => p.target.trim().toLowerCase() === target.trim().toLowerCase())
 
   return (
@@ -189,7 +191,7 @@ export function ImportProject() {
               <label htmlFor={`plan-filter-${i}`}>
                 {row.filter} · {row.subs} × {row.exposureSeconds}s
               </label>
-              <select id={`plan-filter-${i}`} value={filterIds[i]} onChange={(e) => chooseFilter(i, e.target.value)}>
+              <select id={`plan-filter-${i}`} value={filterIds[i]} onChange={(e) => setFilterIds(filterIds.map((id, row) => (row === i ? e.target.value : id)))}>
                 <option value="">Skip this filter</option>
                 {filterOptions.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -203,18 +205,20 @@ export function ImportProject() {
 
           <h3>Nights</h3>
           <p className="muted">
-            Subs are split evenly across the nights. Each night becomes a planned session with its Light, Flat and
-            Flat-Dark batches.
+            Each night is one filter. A filter with more hours than fit in a night is spread over several nights, its
+            subs split evenly. Each night becomes a planned session with its Light, Flat and Flat-Dark batches.
           </p>
           <div className="form-row">
             <div className="form-field">
-              <label htmlFor="plan-nights">Number of nights</label>
+              <label htmlFor="plan-hours">Hours per night</label>
               <input
-                id="plan-nights"
+                id="plan-hours"
                 type="number"
                 min={1}
-                value={dates.length}
-                onChange={(e) => chooseNights(Number(e.target.value))}
+                max={24}
+                step={0.5}
+                value={hoursText}
+                onChange={(e) => setHoursText(e.target.value)}
               />
             </div>
             <div className="form-field">
@@ -232,18 +236,31 @@ export function ImportProject() {
               </datalist>
             </div>
           </div>
-          {dates.map((date, night) => (
-            <div className="form-field" key={night}>
-              <label htmlFor={`plan-date-${night}`}>Night {night + 1}</label>
-              <input
-                id={`plan-date-${night}`}
-                type="date"
-                value={date}
-                onChange={(e) => setDates(dates.map((d, i) => (i === night ? e.target.value : d)))}
-                required
-              />
-            </div>
-          ))}
+          <label className="list-item" style={{ cursor: 'pointer' }}>
+            <span>Let short filters share a night</span>
+            <input type="checkbox" checked={combineShort} onChange={(e) => setCombineShort(e.target.checked)} />
+          </label>
+
+          {tooManyNights ? (
+            <p role="alert" style={{ color: 'var(--danger)' }}>
+              That makes {nights.length} nights, and the most is {MAX_NIGHTS}. Raise the hours per night.
+            </p>
+          ) : (
+            nights.map((night, index) => (
+              <div className="form-field" key={index}>
+                <label htmlFor={`plan-date-${index}`}>
+                  Night {index + 1} · {describeNight(night)}
+                </label>
+                <input
+                  id={`plan-date-${index}`}
+                  type="date"
+                  value={shownDates[index]}
+                  onChange={(e) => setDates(shownDates.map((d, i) => (i === index ? e.target.value : d)))}
+                  required
+                />
+              </div>
+            ))
+          )}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary btn-block" disabled={saving || !canCreate}>
