@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_FILTER_ROWS, PLAN_PROMPT, parsePlan } from './planParse'
+import { MAX_FILTER_ROWS, PLAN_PROMPT, SKILL_PROMPT, parsePlan } from './planParse'
 
 const validPlan = {
   target: 'M31 - Andromeda Galaxy',
@@ -36,6 +36,8 @@ describe('parsePlan', () => {
         target: 'M42',
         goalHours: undefined,
         source: undefined,
+        coordinates: undefined,
+        fieldDegrees: undefined,
         equipment: { camera: undefined, telescope: undefined, mount: undefined },
         filters: [{ filter: 'L', subs: 10, exposureSeconds: 60 }],
       },
@@ -84,6 +86,66 @@ describe('parsePlan', () => {
     expect(errorOf(JSON.stringify({ target: 'M42', filters: rows }))).toMatch(/more than/)
     expect(errorOf(JSON.stringify({ ...validPlan, target: 'x'.repeat(101) }))).toMatch(/too long/)
     expect(errorOf('x'.repeat(20001))).toMatch(/too long/)
+  })
+})
+
+describe('position and field of view', () => {
+  const withExtras = (extras: object) =>
+    JSON.stringify({ target: 'M42', filters: [{ filter: 'L', subs: 1, exposureSeconds: 1 }], ...extras })
+
+  it('reads the centre and field of view', () => {
+    const result = parsePlan(withExtras({ ra: 5.5861, dec: -5.1769, fieldWidthDeg: 3.15, fieldHeightDeg: 2.16 }))
+    expect(result.ok && result.plan.coordinates).toEqual({ raHours: 5.5861, decDegrees: -5.1769 })
+    expect(result.ok && result.plan.fieldDegrees).toEqual({ width: 3.15, height: 2.16 })
+  })
+
+  it('accepts them written as text, including a negative declination', () => {
+    const result = parsePlan(withExtras({ ra: '5.5861', dec: '-5.1769' }))
+    expect(result.ok && result.plan.coordinates).toEqual({ raHours: 5.5861, decDegrees: -5.1769 })
+  })
+
+  it('accepts a plan without them', () => {
+    const result = parsePlan(withExtras({}))
+    expect(result.ok && result.plan.coordinates).toBeUndefined()
+    expect(result.ok && result.plan.fieldDegrees).toBeUndefined()
+  })
+
+  it('rejects half a position, or one out of range', () => {
+    expect(errorOf(withExtras({ ra: 5.5 }))).toMatch(/"ra" and "dec"/)
+    expect(errorOf(withExtras({ dec: 5.5 }))).toMatch(/"ra" and "dec"/)
+    expect(errorOf(withExtras({ ra: 24, dec: 0 }))).toMatch(/"ra" and "dec"/)
+    expect(errorOf(withExtras({ ra: -1, dec: 0 }))).toMatch(/"ra" and "dec"/)
+    expect(errorOf(withExtras({ ra: 5, dec: 91 }))).toMatch(/"ra" and "dec"/)
+    expect(errorOf(withExtras({ ra: 'five', dec: 0 }))).toMatch(/"ra" and "dec"/)
+  })
+
+  it('rejects half a field of view, or an impossible one', () => {
+    expect(errorOf(withExtras({ fieldWidthDeg: 3 }))).toMatch(/fieldWidthDeg/)
+    expect(errorOf(withExtras({ fieldWidthDeg: 0, fieldHeightDeg: 2 }))).toMatch(/fieldWidthDeg/)
+    expect(errorOf(withExtras({ fieldWidthDeg: 181, fieldHeightDeg: 2 }))).toMatch(/fieldWidthDeg/)
+  })
+})
+
+describe('an AI that could not finish', () => {
+  it("shows the AI's own reason instead of a generic complaint", () => {
+    expect(errorOf('{"error":"The AstroBin image page could not be opened."}')).toBe(
+      'Your AI could not finish the plan: The AstroBin image page could not be opened.',
+    )
+  })
+
+  it('keeps a very long reason short', () => {
+    const message = errorOf(JSON.stringify({ error: 'x'.repeat(5000) }))
+    expect(message && message.length).toBeLessThan(400)
+  })
+
+  it('treats an empty error as no error', () => {
+    expect(errorOf('{"error":"","filters":[]}')).toMatch(/"target"/)
+  })
+})
+
+describe('SKILL_PROMPT', () => {
+  it('names the skill and leaves room for the link', () => {
+    expect(SKILL_PROMPT).toBe('Use $astrobin-extractor on [paste the AstroBin link here]')
   })
 })
 

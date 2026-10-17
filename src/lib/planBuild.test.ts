@@ -31,10 +31,11 @@ const plan: ProjectPlan = {
 
 const input = {
   plan,
+  target: 'M31 - Andromeda Galaxy',
+  projectName: 'M31 - A great night',
   filterIds: ['f-l', 'f-ha'],
   dates: ['2026-11-01', '2026-11-02'],
   location: '',
-  gear: { cameraId: 'cam', telescopeId: 'scope', mountId: 'mount' },
   catalog,
   now: '2026-10-17T12:00:00.000Z',
 }
@@ -90,12 +91,13 @@ describe('nightDates', () => {
 })
 
 describe('planNotes', () => {
-  it('records the source, all equipment names, and the acquisition table', () => {
+  it('records the title, source, equipment names and acquisition table, marked as from AstroBin', () => {
     expect(planNotes(plan)).toBe(
       [
-        'Imported plan',
+        'Imported from AstroBin',
+        'Title: M31 - Andromeda Galaxy',
         'Source: https://www.astrobin.com/abc123/',
-        'Equipment: ASI2600MM Pro · Redcat 51 · Unknown mount',
+        'Equipment (from AstroBin): ASI2600MM Pro · Redcat 51 · Unknown mount',
         'Acquisition:',
         'Lum/Clear: 159 × 300s (13h 15m)',
         'Hα: 101 × 300s (8h 25m)',
@@ -104,17 +106,52 @@ describe('planNotes', () => {
     )
   })
 
+  it('recognises AstroBin links in their different forms', () => {
+    for (const source of ['https://app.astrobin.com/i/abc123', 'http://astrobin.com/abc123', 'https://AstroBin.com/x']) {
+      expect(planNotes({ ...plan, source })).toMatch(/^Imported from AstroBin\n/)
+    }
+  })
+
+  it('does not call a plan AstroBin just because the word appears', () => {
+    for (const source of ['https://example.com/astrobin.com/1', 'https://notastrobin.com/1', undefined]) {
+      const notes = planNotes({ ...plan, source })
+      expect(notes).toMatch(/^Imported plan\n/)
+      expect(notes).toContain('Equipment: ASI2600MM Pro')
+      expect(notes).not.toContain('from AstroBin')
+    }
+  })
+
+  it('writes the centre and field of view the way star charts do', () => {
+    const notes = planNotes({
+      ...plan,
+      coordinates: { raHours: 5.5861, decDegrees: -5.1769 },
+      fieldDegrees: { width: 3.15, height: 2.16 },
+    })
+    expect(notes).toContain('Centre: 5h 35m 10s · -5° 10′ 37″')
+    expect(notes).toContain('Field of view: 3.15° × 2.16°')
+  })
+
   it('leaves out what the plan did not say', () => {
     const notes = planNotes({ target: 'M42', equipment: {}, filters: [{ filter: 'L', subs: 1, exposureSeconds: 60 }] })
-    expect(notes).not.toMatch(/Source|Equipment/)
+    expect(notes).not.toMatch(/Source|Equipment|Centre|Field of view/)
   })
 })
 
 describe('buildPlan', () => {
   it('creates a planning project that carries the plan details in its notes', () => {
     const { project } = buildPlan(input)
-    expect(project).toMatchObject({ target: 'M31 - Andromeda Galaxy', goalHours: '25', status: 'planning' })
+    expect(project).toMatchObject({ goalHours: '25', status: 'planning' })
     expect(project.notes).toBe(planNotes(plan))
+  })
+
+  it('uses the target and project name the user settled on, not the plan title', () => {
+    const { project } = buildPlan({ ...input, target: '  NGC 1333  ', projectName: '  Dusty region  ' })
+    expect(project).toMatchObject({ target: 'NGC 1333', projectName: 'Dusty region' })
+    expect(project.notes).toContain('Title: M31 - Andromeda Galaxy')
+  })
+
+  it('leaves the project name unset when it is blank', () => {
+    expect(buildPlan({ ...input, projectName: '   ' }).project.projectName).toBeUndefined()
   })
 
   it('creates one dated planning session per night, linked to the project', () => {
@@ -128,18 +165,12 @@ describe('buildPlan', () => {
     expect(buildPlan(input).sessions[0].location).toBeUndefined()
   })
 
-  it("attaches the chosen equipment and that night's filters to each session", () => {
+  it("attaches that night's filters to each session but no equipment", () => {
     const { sessions } = buildPlan(input)
-    const gear = sessions[0].gear
-    expect(gear?.camera?.id).toBe('cam')
-    expect(gear?.telescope?.id).toBe('scope')
-    expect(gear?.mount?.id).toBe('mount')
-    expect(gear?.filters?.map((f) => f.id)).toEqual(['f-l', 'f-ha'])
-  })
-
-  it('leaves out equipment that was not chosen', () => {
-    const { sessions } = buildPlan({ ...input, gear: { cameraId: '', telescopeId: '', mountId: '' } })
-    expect(sessions[0].gear).toEqual({ filters: expect.any(Array) })
+    expect(sessions[0].gear?.filters?.map((f) => f.id)).toEqual(['f-l', 'f-ha'])
+    expect(sessions[0].gear?.camera).toBeUndefined()
+    expect(sessions[0].gear?.telescope).toBeUndefined()
+    expect(sessions[0].gear?.mount).toBeUndefined()
   })
 
   it('splits light frames across nights without losing any', () => {

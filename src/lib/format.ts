@@ -63,3 +63,16 @@ export function relativeDayLabel(dateIso: string): string {
   if (daysUntil === 1) return 'Tomorrow'
   return formatDate(dateIso)
 }
+
+// Right ascension (given in decimal hours) the way star charts write it: "5h 35m 10s".
+export function formatRightAscension(hours: number): string {
+  const total = Math.round(hours * 3600) % (24 * 3600)
+  return `${Math.floor(total / 3600)}h ${Math.floor((total % 3600) / 60)}m ${total % 60}s`
+}
+
+// Declination (given in decimal degrees) the way star charts write it: "-5° 10′ 37″".
+export function formatDeclination(degrees: number): string {
+  const total = Math.round(Math.abs(degrees) * 3600)
+  const sign = degrees < 0 && total > 0 ? '-' : ''
+  return `${sign}${Math.floor(total / 3600)}° ${Math.floor((total % 3600) / 60)}′ ${total % 60}″`
+}

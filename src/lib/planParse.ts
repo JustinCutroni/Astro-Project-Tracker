@@ -11,6 +11,8 @@ export interface ProjectPlan {
   target: string
   goalHours?: string
   source?: string // e.g. an AstroBin link; kept in the project notes
+  coordinates?: { raHours: number; decDegrees: number } // centre of the image
+  fieldDegrees?: { width: number; height: number } // how much sky the image covers
   equipment: { camera?: string; telescope?: string; mount?: string }
   filters: PlanFilterRow[]
 }
@@ -23,28 +25,41 @@ const MAX_SUBS = 10000
 const MAX_EXPOSURE_SECONDS = 3600
 const MAX_NAME_CHARS = 100
 const MAX_SOURCE_CHARS = 500
+const MAX_ERROR_CHARS = 300
 
-// The instructions the "Copy AI prompt" button hands to an AI, so its answer
-// is exactly what parsePlan reads. Keep the two in step.
+// What the "Copy AI prompt" buttons hand to an AI, so its answer is exactly
+// what parsePlan reads. Keep them in step with it.
+
+// For ChatGPT with the user's astrobin-extractor skill, which already knows the format.
+export const SKILL_PROMPT = 'Use $astrobin-extractor on [paste the AstroBin link here]'
+
+// For any other AI: the format spelled out.
 export const PLAN_PROMPT = `Reply with ONLY a JSON object in this exact shape (no other text):
 
 {
-  "target": "M31 - Andromeda Galaxy",
-  "goalHours": "25",
-  "source": "https://www.astrobin.com/xxxxxx/",
+  "target": "M42 - Orion Nebula",
+  "goalHours": "27.2",
+  "source": "https://app.astrobin.com/i/xxxxxx",
+  "ra": 5.5861,
+  "dec": -5.1769,
+  "fieldWidthDeg": 3.15,
+  "fieldHeightDeg": 2.16,
   "equipment": { "camera": "ASI2600MM Pro", "telescope": "Redcat 51", "mount": "AM5" },
   "filters": [
     { "filter": "L", "subs": 159, "exposureSeconds": 300 },
-    { "filter": "R", "subs": 15, "exposureSeconds": 300 },
     { "filter": "Ha", "subs": 101, "exposureSeconds": 300 }
   ]
 }
 
 Rules:
-- "filters" has one entry per filter in the acquisition table: "subs" is the number of sub-exposures, "exposureSeconds" is the length of one sub in seconds.
+- Use only information I give you or that is shown on the page. Do not guess; leave out any field you do not know, except "filters".
+- "filters" has one entry per filter and exposure length: "subs" is the number of frames, "exposureSeconds" is the length of one frame in seconds. "30×300s" means subs 30, exposureSeconds 300.
 - Do not include a Total row.
 - Name filters L, R, G, B, Ha, OIII or S where possible.
-- "goalHours" is the total integration time in hours. Leave out any field you do not know.`
+- "goalHours" is the total integration time in hours, rounded to one decimal place.
+- "ra" is the right ascension of the image centre in decimal hours (5h 35m 10s is 5.5861). "dec" is the declination in decimal degrees (-5° 10′ 37″ is -5.1769). Give both or neither.
+- "fieldWidthDeg" and "fieldHeightDeg" are the sky area the image covers, in degrees. Give both or neither.
+- If you cannot complete the plan, reply with only {"error": "<short reason>"}.`
 
 class PlanError extends Error {}
 
@@ -58,8 +73,31 @@ function textField(value: unknown, label: string, maxChars: number): string | un
 
 function numberField(value: unknown): number {
   if (typeof value === 'number') return value
-  if (typeof value === 'string' && /^\d+(\.\d+)?$/.test(value.trim())) return Number(value)
+  if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) return Number(value)
   return NaN
+}
+
+const isBlank = (value: unknown) => value === undefined || value === null || value === ''
+
+// Both numbers or neither: half a position is no position.
+function parseCoordinates(raw: Record<string, unknown>): ProjectPlan['coordinates'] {
+  if (isBlank(raw.ra) && isBlank(raw.dec)) return undefined
+  const ra = numberField(raw.ra)
+  const dec = numberField(raw.dec)
+  if (!(ra >= 0 && ra < 24) || !(dec >= -90 && dec <= 90)) {
+    throw new PlanError('"ra" and "dec" must both be given: ra in hours (0 up to 24), dec in degrees (-90 to 90).')
+  }
+  return { raHours: ra, decDegrees: dec }
+}
+
+function parseFieldDegrees(raw: Record<string, unknown>): ProjectPlan['fieldDegrees'] {
+  if (isBlank(raw.fieldWidthDeg) && isBlank(raw.fieldHeightDeg)) return undefined
+  const width = numberField(raw.fieldWidthDeg)
+  const height = numberField(raw.fieldHeightDeg)
+  if (!(width > 0 && width <= 180) || !(height > 0 && height <= 180)) {
+    throw new PlanError('"fieldWidthDeg" and "fieldHeightDeg" must both be given, in degrees above 0 and at most 180.')
+  }
+  return { width, height }
 }
 
 function parseRow(row: unknown, index: number): PlanFilterRow {
@@ -104,6 +142,11 @@ export function parsePlan(text: string): ParseResult {
     if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new PlanError('The plan must be a JSON object.')
     const raw = data as Record<string, unknown>
 
+    // The prompts tell the AI to answer {"error": "..."} when it cannot finish.
+    if (typeof raw.error === 'string' && raw.error.trim()) {
+      throw new PlanError(`Your AI could not finish the plan: ${raw.error.trim().slice(0, MAX_ERROR_CHARS)}`)
+    }
+
     const target = textField(raw.target, 'target', MAX_NAME_CHARS)
     if (!target) throw new PlanError('The plan needs a "target".')
 
@@ -122,6 +165,8 @@ export function parsePlan(text: string): ParseResult {
         target,
         goalHours: textField(raw.goalHours, 'goalHours', 20),
         source: textField(raw.source, 'source', MAX_SOURCE_CHARS),
+        coordinates: parseCoordinates(raw),
+        fieldDegrees: parseFieldDegrees(raw),
         equipment: {
           camera: textField(gear.camera, 'camera', MAX_NAME_CHARS),
           telescope: textField(gear.telescope, 'telescope', MAX_NAME_CHARS),

@@ -1,6 +1,6 @@
 import { flatDarkFor } from './flatDarks'
-import { formatMinutes } from './format'
-import { buildSessionGear, type GearCatalog, type GearIds } from './gear'
+import { formatDeclination, formatMinutes, formatRightAscension } from './format'
+import { buildSessionGear, type GearCatalog } from './gear'
 import { newId } from './ids'
 import type { ProjectPlan } from './planParse'
 import type { Frame, Project, Session } from '../types/models'
@@ -44,13 +44,24 @@ export function nightDates(existing: string[], nights: number, start: string): s
   return dates
 }
 
-// Everything a plan said, kept in the project notes (including equipment names
-// that matched nothing in the catalog).
+const isFromAstroBin = (plan: ProjectPlan) => /(^|\/\/|\.)astrobin\.com(\/|$)/i.test(plan.source ?? '')
+
+// Everything a plan said, kept in the project notes: the title as given, where
+// it came from, and the equipment names (equipment is only recorded here, never
+// matched to the gear catalog).
 export function planNotes(plan: ProjectPlan): string {
-  const lines = ['Imported plan']
+  const fromAstroBin = isFromAstroBin(plan)
+  const lines = [fromAstroBin ? 'Imported from AstroBin' : 'Imported plan']
+  lines.push(`Title: ${plan.target}`)
   if (plan.source) lines.push(`Source: ${plan.source}`)
   const gear = [plan.equipment.camera, plan.equipment.telescope, plan.equipment.mount].filter(Boolean)
-  if (gear.length > 0) lines.push(`Equipment: ${gear.join(' · ')}`)
+  if (gear.length > 0) lines.push(`${fromAstroBin ? 'Equipment (from AstroBin)' : 'Equipment'}: ${gear.join(' · ')}`)
+  if (plan.coordinates) {
+    lines.push(
+      `Centre: ${formatRightAscension(plan.coordinates.raHours)} · ${formatDeclination(plan.coordinates.decDegrees)}`,
+    )
+  }
+  if (plan.fieldDegrees) lines.push(`Field of view: ${plan.fieldDegrees.width}° × ${plan.fieldDegrees.height}°`)
   lines.push('Acquisition:')
   for (const row of plan.filters) {
     const minutes = (row.subs * row.exposureSeconds) / 60
@@ -64,11 +75,12 @@ export function planNotes(plan: ProjectPlan): string {
 
 export interface BuildInput {
   plan: ProjectPlan
+  target: string // what the user settled on in the preview
+  projectName: string // blank means "use the target"
   // One catalog filter id per plan filter row, in the same order; '' skips that filter.
   filterIds: string[]
   dates: string[] // one per night; its length is the number of nights
   location: string
-  gear: Pick<GearIds, 'cameraId' | 'telescopeId' | 'mountId'>
   catalog: GearCatalog
   now: string
 }
@@ -79,10 +91,11 @@ export interface BuiltPlan {
   frames: Frame[]
 }
 
-export function buildPlan({ plan, filterIds, dates, location, gear, catalog, now }: BuildInput): BuiltPlan {
+export function buildPlan({ plan, target, projectName, filterIds, dates, location, catalog, now }: BuildInput): BuiltPlan {
   const project: Project = {
     id: newId(),
-    target: plan.target,
+    target: target.trim(),
+    projectName: projectName.trim() || undefined,
     status: 'planning',
     goalHours: plan.goalHours,
     notes: planNotes(plan),
@@ -132,7 +145,7 @@ export function buildPlan({ plan, filterIds, dates, location, gear, catalog, now
       date,
       location: location.trim() || undefined,
       status: 'planning',
-      gear: buildSessionGear({ ...gear, filterIds: sessionFilterIds }, catalog),
+      gear: buildSessionGear({ cameraId: '', telescopeId: '', mountId: '', filterIds: sessionFilterIds }, catalog),
       createdAt: now,
       updatedAt: now,
     })
