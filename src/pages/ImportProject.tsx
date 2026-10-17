@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { bulkPut, putDoc, useCollection } from '../firebase/firestoreDb'
-import { GearFields } from '../components/GearFields'
 import { sortFilters } from '../lib/filters'
 import { today } from '../lib/format'
-import { selectable, useGearCatalog, type GearIds } from '../lib/gear'
+import { selectable, useGearCatalog } from '../lib/gear'
 import { nowIso } from '../lib/ids'
 import { useKnownLocations } from '../lib/locations'
 import { buildPlan, clampNights, nightDates, planNotes } from '../lib/planBuild'
-import { matchFilter, matchGear } from '../lib/planMatch'
+import { matchFilter } from '../lib/planMatch'
 import { PLAN_PROMPT, SKILL_PROMPT, parsePlan, type ProjectPlan } from '../lib/planParse'
+import { splitTitle } from '../lib/planTitle'
 import type { Frame, Project, Session } from '../types/models'
 
 // Firestore allows 500 writes per batch.
@@ -27,7 +27,8 @@ export function ImportProject() {
   const [plan, setPlan] = useState<ProjectPlan>()
   // One catalog filter id per plan filter row; '' means skip that row.
   const [filterIds, setFilterIds] = useState<string[]>([])
-  const [gearIds, setGearIds] = useState<GearIds>({ cameraId: '', telescopeId: '', mountId: '', filterIds: [] })
+  const [target, setTarget] = useState('')
+  const [projectName, setProjectName] = useState('')
   const [dates, setDates] = useState<string[]>([])
   const [location, setLocation] = useState('')
   const [saving, setSaving] = useState(false)
@@ -53,16 +54,12 @@ export function ImportProject() {
       setPlan(undefined)
       return
     }
-    const { equipment, filters } = result.plan
+    const split = splitTitle(result.plan.target)
     setError('')
     setPlan(result.plan)
-    setFilterIds(filters.map((row) => matchFilter(row.filter, catalog.filters)?.id ?? ''))
-    setGearIds({
-      cameraId: matchGear(equipment.camera ?? '', catalog.cameras)?.id ?? '',
-      telescopeId: matchGear(equipment.telescope ?? '', catalog.telescopes)?.id ?? '',
-      mountId: matchGear(equipment.mount ?? '', catalog.mounts)?.id ?? '',
-      filterIds: [],
-    })
+    setTarget(split.target)
+    setProjectName(split.projectName ?? '')
+    setFilterIds(result.plan.filters.map((row) => matchFilter(row.filter, catalog.filters)?.id ?? ''))
     setDates(nightDates([], 1, today()))
   }
 
@@ -84,7 +81,7 @@ export function ImportProject() {
     if (saving || !plan) return
     setSaving(true)
     try {
-      const built = buildPlan({ plan, filterIds, dates, location, gear: gearIds, catalog, now: nowIso() })
+      const built = buildPlan({ plan, target, projectName, filterIds, dates, location, catalog, now: nowIso() })
       await putDoc<Project>('projects', built.project)
       await bulkPut<Session>('sessions', built.sessions)
       for (let i = 0; i < built.frames.length; i += FRAME_BATCH_SIZE) {
@@ -100,9 +97,8 @@ export function ImportProject() {
 
   const filterOptions = sortFilters(selectable(catalog.filters))
   const hasFilters = plan ? includedSubs(plan.filters, filterIds).length > 0 : false
-  const alreadyHasTarget =
-    plan && projects.some((p) => p.target.trim().toLowerCase() === plan.target.toLowerCase())
-  const named = plan ? [plan.equipment.camera, plan.equipment.telescope, plan.equipment.mount].filter(Boolean) : []
+  const canCreate = hasFilters && target.trim() !== ''
+  const alreadyHasTarget = projects.some((p) => p.target.trim().toLowerCase() === target.trim().toLowerCase())
 
   return (
     <div>
@@ -159,11 +155,32 @@ export function ImportProject() {
           <div className="card">
             <h3>3. Check the plan</h3>
             <pre className="muted" style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>
-              {`${plan.target}${plan.goalHours ? ` · goal ${plan.goalHours}h` : ''}\n${planNotes(plan)}`}
+              {`${plan.goalHours ? `Goal ${plan.goalHours}h\n` : ''}${planNotes(plan)}`}
             </pre>
-            {alreadyHasTarget && (
-              <p className="muted">You already have a project for this target. Importing creates a separate one.</p>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="plan-target">Target *</label>
+            <input
+              id="plan-target"
+              value={target}
+              maxLength={100}
+              onChange={(e) => setTarget(e.target.value)}
+              required
+            />
+            {alreadyHasTarget && target.trim() && (
+              <div className="muted">You already have a project for this target. Importing creates a separate one.</div>
             )}
+          </div>
+          <div className="form-field">
+            <label htmlFor="plan-project-name">Project name</label>
+            <input
+              id="plan-project-name"
+              value={projectName}
+              maxLength={150}
+              placeholder="Defaults to the target"
+              onChange={(e) => setProjectName(e.target.value)}
+            />
           </div>
 
           <h3>Filters</h3>
@@ -183,10 +200,6 @@ export function ImportProject() {
               {!filterIds[i] && <div className="muted">No match in your filters. Pick one, or skip it.</div>}
             </div>
           ))}
-
-          <h3>Equipment</h3>
-          <GearFields catalog={catalog} ids={gearIds} onChange={setGearIds} hideFilters />
-          {named.length > 0 && <p className="muted">The plan named: {named.join(' · ')}</p>}
 
           <h3>Nights</h3>
           <p className="muted">
@@ -233,11 +246,12 @@ export function ImportProject() {
           ))}
 
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary btn-block" disabled={saving || !hasFilters}>
+            <button type="submit" className="btn btn-primary btn-block" disabled={saving || !canCreate}>
               {saving ? 'Creating…' : 'Create project'}
             </button>
           </div>
           {!hasFilters && <p className="muted">Pick at least one filter to create the project.</p>}
+          {hasFilters && !canCreate && <p className="muted">The project needs a target.</p>}
         </form>
       )}
     </div>

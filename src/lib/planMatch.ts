@@ -1,8 +1,8 @@
-import type { FilterDef, Retirable } from '../types/models'
+import type { FilterDef } from '../types/models'
 
-// Names in a plan come from an AI or a website, so they rarely match the
-// catalog letter for letter ("Lum / Clear", "Hα"). These find the catalog
-// entry a name most likely means; anything uncertain is left for the user.
+// Filter names in a plan come from an AI or a website, so they rarely match
+// the catalog letter for letter ("Lum / Clear", "Hα"). This finds the catalog
+// filter a name most likely means; anything uncertain is left for the user.
 
 function normalizeName(name: string): string {
   return name
@@ -34,22 +34,5 @@ export function matchFilter(name: string, filters: FilterDef[]): FilterDef | und
   return (
     active.find((f) => normalizeName(f.description) === key) ??
     active.find((f) => normalizeName(f.description) === FILTER_ALIASES[key])
-  )
-}
-
-const MIN_PARTIAL_LENGTH = 3
-
-// Cameras, telescopes and mounts: an exact name, or one name containing the
-// other ("ASI2600MM Pro" vs "ZWO ASI2600MM Pro").
-export function matchGear<T extends Retirable & { description: string }>(name: string, items: T[]): T | undefined {
-  const active = items.filter((i) => !i.retiredAt)
-  const key = normalizeName(name)
-  if (key.length < MIN_PARTIAL_LENGTH) return undefined
-  return (
-    active.find((i) => normalizeName(i.description) === key) ??
-    active.find((i) => {
-      const own = normalizeName(i.description)
-      return own.length >= MIN_PARTIAL_LENGTH && (own.includes(key) || key.includes(own))
-    })
   )
 }

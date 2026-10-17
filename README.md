@@ -250,22 +250,32 @@ needs no API key:
    list of filters with number of subs and exposure length. If the AI can't
    finish, its `{"error": ...}` reply is shown here as-is.
 2. Paste the answer and tap **Read plan**. The preview shows what was found.
-   Each filter and each piece of equipment is matched to your Settings
-   catalog ("Lum / Clear" becomes L, "H-alpha" becomes Ha). Anything that
-   doesn't match is left for you to pick or skip - nothing is added to your
-   catalog automatically.
+   The title is split for you: a known designation at the start (M, NGC, IC,
+   Sh2, LBN, LDN, vdB, Barnard, ...) becomes the **target** ("NGC 1333 - A
+   Dusty Region in Taurus" gives the target "NGC 1333", written the way the
+   target autocomplete does where the object is in its list), and the whole
+   title becomes the **project name**. A title with no designation up front is
+   left as the target, untouched. Both boxes are editable before you create.
+   Each filter is matched to your Settings catalog ("Lum / Clear" becomes L,
+   "H-alpha" becomes Ha); anything that doesn't match is left for you to pick
+   or skip - nothing is added to your catalog automatically.
 3. Choose how many nights to spread the imaging over and set each night's
    date (and a location, if you like). Subs are split evenly across the
    nights.
 
 Create makes the project plus one session per night, all in **Planning**:
-each session has the equipment attached, a Light batch per filter, and a
-Flat batch (20 frames, exposure left at 0 until you capture it) with a
-matching Flat Dark per filter. Because everything is Planning, none of it
-counts toward integration time until you capture it. Everything the plan
-said, including the source link, the image's centre and field of view, and
-any equipment names that didn't match, is saved in the project notes (the
-centre is kept as text for now, ready for future planning tools).
+each session has a Light batch per filter, and a Flat batch (20 frames,
+exposure left at 0 until you capture it) with a matching Flat Dark per filter.
+Because everything is Planning, none of it counts toward integration time
+until you capture it.
+
+Equipment in a plan is **not** matched to your gear catalog and nothing is
+attached to the sessions; the names go into the project notes only. The notes
+open with "Imported from AstroBin" when the source link is an AstroBin one
+("Imported plan" otherwise), then the original title, the source link, the
+equipment names ("Equipment (from AstroBin)"), the image's centre and field of
+view, and the acquisition table. The centre is kept as text for now, ready for
+future planning tools.
 
 ## Night mode
 
@@ -307,8 +317,9 @@ deployment, where that env var is unset.
   and when a parent advances) and integration-time totals (Light frames
   only; darks, flats, and bias never count; batches still in Planning
   aren't captured time yet), plus the plan import (reading the pasted
-  plan, matching names to your gear, splitting subs across nights, and
-  building the project, sessions and frame batches).
+  plan, splitting the title into target and project name, matching filter
+  names, splitting subs across nights, and building the project, sessions and
+  frame batches).
 - `npm run test:rules` - checks `firestore.rules` against the local
   Firestore emulator: you can read/write only your own `users/<uid>/...`
   data, and signed-out visitors and other accounts get nothing. Needs the
