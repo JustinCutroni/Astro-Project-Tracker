@@ -133,7 +133,9 @@ export function ProjectDetail() {
 
       {project.notes && (
         <div className="card">
-          <div className="muted">{project.notes}</div>
+          <div className="muted" style={{ whiteSpace: 'pre-wrap' }}>
+            {project.notes}
+          </div>
         </div>
       )}
 

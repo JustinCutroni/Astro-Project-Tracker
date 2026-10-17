@@ -236,6 +236,33 @@ resolution fill in automatically from a small bundled catalog of common
 astrophotography cameras. Same reasoning - offline, free, and every field
 stays editable since the catalog won't have every camera.
 
+## Importing a project plan
+
+**Projects > Import plan** turns an idea from an AI chat into a project you
+can come back to later. It is a copy-and-paste flow, so it works offline and
+needs no API key:
+
+1. Tap **Copy AI prompt** and give it to your AI along with a target (or an
+   AstroBin image link). It answers with a small JSON plan: target, goal
+   hours, equipment names, and a list of filters with number of subs and
+   exposure length.
+2. Paste the answer and tap **Read plan**. The preview shows what was found.
+   Each filter and each piece of equipment is matched to your Settings
+   catalog ("Lum / Clear" becomes L, "H-alpha" becomes Ha). Anything that
+   doesn't match is left for you to pick or skip - nothing is added to your
+   catalog automatically.
+3. Choose how many nights to spread the imaging over and set each night's
+   date (and a location, if you like). Subs are split evenly across the
+   nights.
+
+Create makes the project plus one session per night, all in **Planning**:
+each session has the equipment attached, a Light batch per filter, and a
+Flat batch (20 frames, exposure left at 0 until you capture it) with a
+matching Flat Dark per filter. Because everything is Planning, none of it
+counts toward integration time until you capture it. Everything the plan
+said, including the source link and any equipment names that didn't match,
+is saved in the project notes.
+
 ## Night mode
 
 The moon icon in the header switches to a monochrome red palette (black
@@ -275,7 +302,9 @@ deployment, where that env var is unset.
   rules (how a change moves through project -> session -> frame batches,
   and when a parent advances) and integration-time totals (Light frames
   only; darks, flats, and bias never count; batches still in Planning
-  aren't captured time yet).
+  aren't captured time yet), plus the plan import (reading the pasted
+  plan, matching names to your gear, splitting subs across nights, and
+  building the project, sessions and frame batches).
 - `npm run test:rules` - checks `firestore.rules` against the local
   Firestore emulator: you can read/write only your own `users/<uid>/...`
   data, and signed-out visitors and other accounts get nothing. Needs the
