@@ -9,7 +9,7 @@ import { nowIso } from '../lib/ids'
 import { useKnownLocations } from '../lib/locations'
 import { buildPlan, clampNights, nightDates, planNotes } from '../lib/planBuild'
 import { matchFilter, matchGear } from '../lib/planMatch'
-import { PLAN_PROMPT, parsePlan, type ProjectPlan } from '../lib/planParse'
+import { PLAN_PROMPT, SKILL_PROMPT, parsePlan, type ProjectPlan } from '../lib/planParse'
 import type { Frame, Project, Session } from '../types/models'
 
 // Firestore allows 500 writes per batch.
@@ -37,9 +37,9 @@ export function ImportProject() {
   const includedSubs = (rows: ProjectPlan['filters'], ids: string[]) =>
     rows.filter((_, i) => ids[i]).map((row) => row.subs)
 
-  const copyPrompt = async () => {
+  const copyPrompt = async (prompt: string) => {
     try {
-      await navigator.clipboard.writeText(PLAN_PROMPT)
+      await navigator.clipboard.writeText(prompt)
       setCopyMessage('Copied.')
     } catch {
       setCopyMessage("Couldn't copy. Open the prompt below and copy it by hand.")
@@ -116,15 +116,19 @@ export function ImportProject() {
       <div className="card">
         <h3>1. Ask your AI</h3>
         <p className="muted">
-          Tell your AI the target (or an AstroBin image) and give it this prompt. It will answer with a plan to
-          paste below.
+          Copy a prompt, give it to your AI along with an AstroBin link or a target, and paste its answer below.
         </p>
-        <button type="button" className="btn btn-sm" onClick={copyPrompt}>
-          Copy AI prompt
-        </button>
-        {copyMessage && <span className="muted"> {copyMessage}</span>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-sm" onClick={() => copyPrompt(SKILL_PROMPT)}>
+            Copy astrobin-extractor command
+          </button>
+          <button type="button" className="btn btn-sm" onClick={() => copyPrompt(PLAN_PROMPT)}>
+            Copy full prompt (any AI)
+          </button>
+        </div>
+        {copyMessage && <p className="muted">{copyMessage}</p>}
         <details style={{ marginTop: '0.75rem' }}>
-          <summary>Show the prompt</summary>
+          <summary>Show the full prompt</summary>
           <textarea readOnly rows={14} value={PLAN_PROMPT} aria-label="AI prompt" />
         </details>
       </div>

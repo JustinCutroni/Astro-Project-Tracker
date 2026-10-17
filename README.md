@@ -242,10 +242,13 @@ stays editable since the catalog won't have every camera.
 can come back to later. It is a copy-and-paste flow, so it works offline and
 needs no API key:
 
-1. Tap **Copy AI prompt** and give it to your AI along with a target (or an
-   AstroBin image link). It answers with a small JSON plan: target, goal
-   hours, equipment names, and a list of filters with number of subs and
-   exposure length.
+1. Give your AI a target or an AstroBin link, using one of the two copy
+   buttons. **Copy astrobin-extractor command** is for ChatGPT with the
+   `astrobin-extractor` skill. **Copy full prompt (any AI)** spells the format
+   out for any other AI. The answer is a small JSON plan: target, goal hours,
+   equipment names, the image's centre and field of view (if known), and a
+   list of filters with number of subs and exposure length. If the AI can't
+   finish, its `{"error": ...}` reply is shown here as-is.
 2. Paste the answer and tap **Read plan**. The preview shows what was found.
    Each filter and each piece of equipment is matched to your Settings
    catalog ("Lum / Clear" becomes L, "H-alpha" becomes Ha). Anything that
@@ -260,8 +263,9 @@ each session has the equipment attached, a Light batch per filter, and a
 Flat batch (20 frames, exposure left at 0 until you capture it) with a
 matching Flat Dark per filter. Because everything is Planning, none of it
 counts toward integration time until you capture it. Everything the plan
-said, including the source link and any equipment names that didn't match,
-is saved in the project notes.
+said, including the source link, the image's centre and field of view, and
+any equipment names that didn't match, is saved in the project notes (the
+centre is kept as text for now, ready for future planning tools).
 
 ## Night mode
 

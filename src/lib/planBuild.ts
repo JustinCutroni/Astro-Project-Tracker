@@ -1,5 +1,5 @@
 import { flatDarkFor } from './flatDarks'
-import { formatMinutes } from './format'
+import { formatDeclination, formatMinutes, formatRightAscension } from './format'
 import { buildSessionGear, type GearCatalog, type GearIds } from './gear'
 import { newId } from './ids'
 import type { ProjectPlan } from './planParse'
@@ -51,6 +51,12 @@ export function planNotes(plan: ProjectPlan): string {
   if (plan.source) lines.push(`Source: ${plan.source}`)
   const gear = [plan.equipment.camera, plan.equipment.telescope, plan.equipment.mount].filter(Boolean)
   if (gear.length > 0) lines.push(`Equipment: ${gear.join(' · ')}`)
+  if (plan.coordinates) {
+    lines.push(
+      `Centre: ${formatRightAscension(plan.coordinates.raHours)} · ${formatDeclination(plan.coordinates.decDegrees)}`,
+    )
+  }
+  if (plan.fieldDegrees) lines.push(`Field of view: ${plan.fieldDegrees.width}° × ${plan.fieldDegrees.height}°`)
   lines.push('Acquisition:')
   for (const row of plan.filters) {
     const minutes = (row.subs * row.exposureSeconds) / 60

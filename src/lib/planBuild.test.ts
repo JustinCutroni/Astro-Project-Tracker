@@ -104,9 +104,19 @@ describe('planNotes', () => {
     )
   })
 
+  it('writes the centre and field of view the way star charts do', () => {
+    const notes = planNotes({
+      ...plan,
+      coordinates: { raHours: 5.5861, decDegrees: -5.1769 },
+      fieldDegrees: { width: 3.15, height: 2.16 },
+    })
+    expect(notes).toContain('Centre: 5h 35m 10s · -5° 10′ 37″')
+    expect(notes).toContain('Field of view: 3.15° × 2.16°')
+  })
+
   it('leaves out what the plan did not say', () => {
     const notes = planNotes({ target: 'M42', equipment: {}, filters: [{ filter: 'L', subs: 1, exposureSeconds: 60 }] })
-    expect(notes).not.toMatch(/Source|Equipment/)
+    expect(notes).not.toMatch(/Source|Equipment|Centre|Field of view/)
   })
 })
 
