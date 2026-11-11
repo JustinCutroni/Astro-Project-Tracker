@@ -287,6 +287,19 @@ The moon icon in the header switches to a monochrome red palette (black
 background, red-only text and status colors) for preserving night vision at
 the eyepiece, and remembers your choice on that device.
 
+## Starfront status
+
+The **Starfront** button in the bottom menu opens Starfront Observatories'
+live status page (status.starfront.space: roof status, all-sky camera,
+forecast, tonight's schedule) full screen, above the bottom menu. Close it
+with the round ✕, by tapping Starfront again, or with your phone's back
+gesture, and you return to the screen you were on (or the Dashboard, if the
+app was opened straight onto it).
+
+It's Starfront's own site shown in a frame, so it needs a connection (offline
+it says so, and loads by itself when you reconnect), and its look and text
+size are theirs; the app's Night mode doesn't tint it.
+
 ## Roadmap
 
 Rough order, biased toward what's cheapest to run:
