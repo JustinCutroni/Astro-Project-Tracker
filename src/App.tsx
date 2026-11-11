@@ -12,6 +12,7 @@ import { SessionDetail } from './pages/SessionDetail'
 import { CopySession } from './pages/CopySession'
 import { FrameForm } from './pages/FrameForm'
 import { Settings } from './pages/Settings'
+import { StarfrontStatus } from './pages/StarfrontStatus'
 import { useAuthUser } from './firebase/auth'
 import { seedDefaultFiltersIfEmpty } from './firebase/firestoreDb'
 import { migrateLegacyStatuses } from './lib/statusSync'
@@ -57,6 +58,7 @@ function App() {
             element={<FrameForm />}
           />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/starfront" element={<StarfrontStatus />} />
         </Route>
       </Routes>
     </HashRouter>

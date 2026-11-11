@@ -32,6 +32,18 @@ export function IconSliders({ size = 20 }: IconProps) {
   )
 }
 
+// Observatory dome with its shutter slit open, on a base: the Starfront status page.
+export function IconDome({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 15a8 8 0 0 1 16 0" />
+      <path d="M12 7v4" />
+      <path d="M3 15h18" />
+      <path d="M6 15v5h12v-5" />
+    </svg>
+  )
+}
+
 export function IconMoon({ size = 18 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">
